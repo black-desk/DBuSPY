@@ -1,40 +1,89 @@
 from textual.app import App, ComposeResult
-from textual.widgets import Header, Footer
-from textual.containers import ScrollableContainer
-from textual.widgets import Button, Footer, Header, Static
+from textual.containers import ScrollableContainer, Vertical, Horizontal
+from textual.widgets import (
+    Select,
+    Tabs,
+    Input,
+    Button,
+    Footer,
+    Header,
+    Tree,
+    ListView,
+    ListItem,
+    Label,
+)
 
 
-class TimeDisplay(Static):
-    """A widget to display elapsed time."""
-
-
-class Stopwatch(Static):
-    """A stopwatch widget."""
-
-    def compose(self) -> ComposeResult:
-        """Create child widgets of a stopwatch."""
-        yield Button("Start", id="start", variant="success")
-        yield Button("Stop", id="stop", variant="error")
-        yield Button("Reset", id="reset")
-        yield TimeDisplay("00:00:00.00")
-
-
-class StopwatchApp(App):
+class DBuspyApp(App):
     """A Textual app to manage stopwatches."""
-
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
         yield Footer()
-        yield ScrollableContainer(Stopwatch(), Stopwatch(), Stopwatch())
-
-    def action_toggle_dark(self) -> None:
-        """An action to toggle dark mode."""
-        self.dark = not self.dark
+        yield Tabs("session bus", "system bus")
+        yield Horizontal(
+            ListView(
+                ListItem(Label("aaa")),
+                ListItem(Label("bbb")),
+            ),
+            Vertical(
+                ScrollableContainer(Tree("test")),
+                Horizontal(
+                    Vertical(
+                        Vertical(
+                            Horizontal(
+                                Label("well known name:"),
+                                Label("XXX"),
+                            ),
+                            Horizontal(
+                                Label("unique name:"),
+                                Label("YYY"),
+                            ),
+                            Horizontal(
+                                Label("object path:"),
+                                Label("ZZZ"),
+                            ),
+                            Horizontal(
+                                Label("method:"),
+                                Label("FFF"),
+                            ),
+                        ),
+                        Horizontal(
+                            Input(placeholder="Arguments"),
+                        ),
+                        Vertical(
+                            Horizontal(
+                                Label("times:"),
+                                Input("1"),
+                                Button("call"),
+                            ),
+                            Horizontal(
+                                Label("result:"),
+                                Label("XXX"),
+                                Button("copy"),
+                            ),
+                        ),
+                        Horizontal(
+                            Label("copy request as"),
+                            Select(
+                                [
+                                    ("dbus-send", "dbus-send"),
+                                    ("gdbus", "gdbus"),
+                                    ("qdbus", "qdbus"),
+                                    ("busctl", "busctl"),
+                                ],
+                                value="dbus-send",
+                                allow_blank=False,
+                            ),
+                            Button("copy"),
+                        ),
+                    ),
+                ),
+            ),
+        )
 
 
 def main():
-    app = StopwatchApp()
+    app = DBuspyApp()
     app.run()
