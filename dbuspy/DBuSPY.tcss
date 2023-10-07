@@ -1,0 +1,26 @@
+/* vim: set ft=css: */
+NamesPanel {
+        width: 30%;
+}
+
+TreePanel {
+        height: 40%;
+}
+
+MethodPanel Label {
+        height: 3;
+        content-align: center middle;
+}
+
+#start {
+        dock: left;
+}
+
+#stop {
+        dock: left;
+        display: none;
+}
+
+#reset {
+        dock: right;
+}
