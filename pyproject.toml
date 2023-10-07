@@ -1,1 +1,31 @@
-./.format/pyproject.toml
+[tool.poetry]
+name = "dbuspy"
+version = "0.1.0"
+description = "DBus viewer written in python powered by textual."
+readme = "README.md"
+authors = ["Chen Linxuan <me@black-desk.cn>"]
+homepage = "https://github.com/black-desk/dbuspy"
+repository = "https://github.com/black-desk/dbuspy"
+license = "LGPL-3.0-or-later"
+classifiers = [
+        "Development Status :: 1 - Planning",
+        "Intended Audience :: Developers",
+        "Operating System :: POSIX :: Linux",
+]
+keywords = ["textual", "dbus"]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+textual = "^1.0.0"
+dbus-next = "^0.2.3"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.1.2"
+pytest-cov = "^3.0"
+textual-dev = "^1.2.1"
+
+[tool.poetry.scripts]
+dbuspy = "dbuspy.__main__:main"
+
+[tool.black]
+line-length = 80
