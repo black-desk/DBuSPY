@@ -4,12 +4,25 @@ NamesPanel {
 }
 
 TreePanel {
-        height: 40%;
+        max-height: 70%;
 }
 
+MethodPanel{
+        min-height: 20;
+        max-height: 30%;
+}
 MethodPanel Label {
         height: 3;
         content-align: center middle;
+        width: 15%;
+}
+
+MethodPanel>Horizontal{
+        align: right middle;
+}
+
+#times {
+        width: 85%;
 }
 
 #start {

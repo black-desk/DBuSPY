@@ -26,9 +26,7 @@ class TreePanel(ScrollableContainer):
 
 class MethodPanel(Vertical):
     def compose(self) -> ComposeResult:
-        yield Horizontal(
-            Input(placeholder="Arguments"),
-        )
+        yield Input(placeholder="Arguments")
 
         yield Horizontal(
             Label(
@@ -49,14 +47,14 @@ class MethodPanel(Vertical):
         )
 
         yield Horizontal(
-            Label("times:"),
+            Label("times"),
             Input("1", id="times"),
         )
         yield Horizontal(
-            Label("result:"),
+            Label("result"),
             ScrollableContainer(Markdown("```XXX```", id="result")),
         )
-        yield Button("call", id="call")
+        yield Horizontal(Button("call", id="call"))
 
 
 class DBuSPY(App):
