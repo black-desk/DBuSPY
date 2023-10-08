@@ -1,5 +1,6 @@
 /* vim: set ft=css: */
-NamesPanel {
+
+Horizontal>ScrollableContainer {
         width: 30%;
 }
 
@@ -16,7 +17,7 @@ MethodPanel Label {
         width: 15%;
 }
 
-MethodPanel>Horizontal{
+#call_layout{
         align: right middle;
 }
 

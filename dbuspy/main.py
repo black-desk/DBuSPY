@@ -81,13 +81,13 @@ class DBusNameList(ListView):
             daemon_dbus_name, "/org/freedesktop/DBus"
         )
 
-        logging.debug(introspection.tostring())
-
         daemon = bus.get_proxy_object(
             daemon_dbus_name, "/", introspection
         ).get_interface("org.freedesktop.DBus")
 
         names = await daemon.call_list_names()
+
+        logging.debug(names)
 
         await self.clear()
         for name in names:
@@ -139,8 +139,6 @@ class DBusObjectTree(Tree):
         self, bus: MessageBus, name: str
     ) -> None:
         instropection = await self.get_object_instropection(bus, name, "/")
-        if not instropection is None:
-            logging.debug(instropection)
 
 
 class MethodPanel(Vertical):
@@ -173,7 +171,10 @@ class MethodPanel(Vertical):
             Label("result"),
             ScrollableContainer(Markdown("```XXX```", id="result")),
         )
-        yield Horizontal(Button("call", id="call"))
+        yield Horizontal(
+            Button("call", id="call"),
+            id="call_layout",
+        )
 
 
 class DBuSPY(App):
