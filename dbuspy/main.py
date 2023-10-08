@@ -1,9 +1,16 @@
-import logging
+import logging, asyncio
+from typing import Optional
+from dbus_next.aio.message_bus import MessageBus
+from dbus_next.constants import BusType
+from textual import on
+from textual import work
 from textual.binding import Binding
 from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
 from textual.containers import ScrollableContainer, Vertical, Horizontal
+from textual.message import Message
 from textual.widgets import (
+    ListItem,
     Markdown,
     Select,
     Tab,
@@ -23,23 +30,117 @@ logging.basicConfig(
 )
 
 
+class NewBus(Message):
+    def __init__(self, name: str, bus: MessageBus) -> None:
+        super().__init__()
+        self.name = name
+        self.bus = bus
+
+
+class ActiveBusChanged(Message):
+    def __init__(self, bus: MessageBus) -> None:
+        super().__init__()
+        self.bus = bus
+
+
+class ActiveDBusNameChanged(Message):
+    def __init__(self, bus: MessageBus, name: str) -> None:
+        super().__init__()
+        self.bus = bus
+        self.name = name
+
+
 class BusTabs(Tabs):
+    def __init__(self, id: str | None = None) -> None:
+        super().__init__(id=id)
+        self.buses: dict[str, MessageBus] = {}
+
     def compose(self) -> ComposeResult:
         return super().compose()
 
+    def add_bus(self, name: str, bus: MessageBus) -> None:
+        self.buses[name] = bus
+        self.add_tab(Tab(name, id=name))
+
     def watch_active(self, previously_active: str, active: str) -> None:
-        logging.debug(active)
-        return super().watch_active(previously_active, active)
+        self.post_message(ActiveBusChanged(self.buses[active]))
+        super().watch_active(previously_active, active)
 
 
-class NamesPanel(ScrollableContainer):
-    def compose(self) -> ComposeResult:
-        yield ListView();
+class DBusNameList(ListView):
+    def __init__(self, id: str):
+        super().__init__(id=id)
+        self.bus: Optional[MessageBus] = None
+
+    @work(exclusive=True)
+    async def switch_to_bus(self, bus: MessageBus):
+        self.bus = bus
+
+        daemon_dbus_name = "org.freedesktop.DBus"
+        introspection = await bus.introspect(
+            daemon_dbus_name, "/org/freedesktop/DBus"
+        )
+
+        logging.debug(introspection.tostring())
+
+        daemon = bus.get_proxy_object(
+            daemon_dbus_name, "/", introspection
+        ).get_interface("org.freedesktop.DBus")
+
+        names = await daemon.call_list_names()
+
+        await self.clear()
+        for name in names:
+            await self.append(ListItem(Label(name)))
+
+    def watch_index(self, old_index: int, new_index: int) -> None:
+        super().watch_index(old_index, new_index)
+
+        if self.bus is None:
+            return
+
+        if new_index is None:
+            return
+
+        self.post_message(
+            ActiveDBusNameChanged(
+                self.bus,
+                self.children[new_index]
+                .get_child_by_type(Label)
+                .renderable.__str__(),
+            )
+        )
+        return
 
 
-class TreePanel(ScrollableContainer):
-    def compose(self) -> ComposeResult:
-        yield Tree("/")
+class DBusObjectTree(Tree):
+    async def get_object_instropection(
+        self, bus: MessageBus, name: str, path: str
+    ) -> Optional[str]:
+        instropection = None
+        try:
+            instropection = await bus.introspect(name, path)
+        except Exception:
+            pass
+
+        if instropection is None:
+            logging.error(
+                "instropect dbus object of service {} on bus {} at {} failed".format(
+                    name, bus, path
+                )
+            )
+            return instropection
+
+        instropection = instropection.tostring()
+        return instropection
+
+    @work(exclusive=True)
+    async def show_dbus_object_tree_of_dbus_name(
+        self, bus: MessageBus, name: str
+    ) -> None:
+        instropection = await self.get_object_instropection(bus, name, "/")
+        if not instropection is None:
+            logging.debug(instropection)
 
 
 class MethodPanel(Vertical):
@@ -87,22 +188,40 @@ class DBuSPY(App):
         """Create child widgets for the app."""
         yield Header()
         yield Footer()
-        yield BusTabs(id="buses")
+        yield BusTabs(id="buses_tabs")
         yield Horizontal(
-            NamesPanel(id="names"),
+            ScrollableContainer(DBusNameList(id="dbus_name_list")),
             Vertical(
-                TreePanel(id="tree"),
+                ScrollableContainer(DBusObjectTree("/", id="tree")),
                 MethodPanel(id="method"),
             ),
         )
 
     def on_mount(self):
-        self.add_bus(Tab("session", id="session_bus"))
-        self.add_bus(Tab("system", id="system_bus"))
+        self.add_buses()
 
-    def add_bus(self, name: Tab):
-        buses = self.get_child_by_id("buses", expect_type=BusTabs)
-        buses.add_tab(name)
+    @work()
+    async def add_buses(self):
+        # add common buses
+        buses_tab = self.get_child_by_id("buses_tabs", expect_type=BusTabs)
+        buses_tab.add_bus(
+            "session", await MessageBus(bus_type=BusType.SESSION).connect()
+        )
+        buses_tab.add_bus(
+            "system", await MessageBus(bus_type=BusType.SYSTEM).connect()
+        )
+
+    @on(ActiveBusChanged)
+    def on_active_bus_changed(self, event: ActiveBusChanged) -> None:
+        names = self.get_widget_by_id(
+            "dbus_name_list", expect_type=DBusNameList
+        )
+        names.switch_to_bus(event.bus)
+
+    @on(ActiveDBusNameChanged)
+    def on_active_dbus_name_changed(self, event: ActiveDBusNameChanged) -> None:
+        tree = self.get_widget_by_id("tree", expect_type=DBusObjectTree)
+        tree.show_dbus_object_tree_of_dbus_name(event.bus, event.name)
 
 
 def main():

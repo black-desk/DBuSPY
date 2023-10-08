@@ -340,6 +340,17 @@ files = [
 toml = ["tomli"]
 
 [[package]]
+name = "dbus-next"
+version = "0.2.3"
+description = "A zero-dependency DBus library for Python with asyncio support"
+optional = false
+python-versions = ">=3.6.0"
+files = [
+    {file = "dbus_next-0.2.3-py3-none-any.whl", hash = "sha256:58948f9aff9db08316734c0be2a120f6dc502124d9642f55e90ac82ffb16a18b"},
+    {file = "dbus_next-0.2.3.tar.gz", hash = "sha256:f4eae26909332ada528c0a3549dda8d4f088f9b365153952a408e28023a626a5"},
+]
+
+[[package]]
 name = "frozenlist"
 version = "1.4.0"
 description = "A list-like structure which implements collections.abc.MutableSequence"
@@ -1063,4 +1074,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.11.4"
-content-hash = "35f4e45edc44f73a3cf363859c1cb5af43f81bbabed1826b82d1780b9bf56ae6"
+content-hash = "c96e6d7e571d6abe0232ff197cdc32ddcc8bcfee72c7e280032ec40bed063a5a"
