@@ -4,12 +4,11 @@ NamesPanel {
 }
 
 TreePanel {
-        max-height: 70%;
+        max-height: 80%;
 }
 
 MethodPanel{
-        min-height: 20;
-        max-height: 30%;
+        height: 15;
 }
 MethodPanel Label {
         height: 3;

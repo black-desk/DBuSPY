@@ -14,9 +14,9 @@ from textual.widgets import (
 )
 
 
-class NamesPanel(ListView):
+class NamesPanel(ScrollableContainer):
     def compose(self) -> ComposeResult:
-        return super().compose()
+        yield ListView();
 
 
 class TreePanel(ScrollableContainer):
