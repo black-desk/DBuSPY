@@ -1,8 +1,12 @@
+import logging
+from textual.binding import Binding
+from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
 from textual.containers import ScrollableContainer, Vertical, Horizontal
 from textual.widgets import (
     Markdown,
     Select,
+    Tab,
     Tabs,
     Input,
     Button,
@@ -12,6 +16,20 @@ from textual.widgets import (
     ListView,
     Label,
 )
+
+logging.basicConfig(
+    level="NOTSET",
+    handlers=[TextualHandler()],
+)
+
+
+class BusTabs(Tabs):
+    def compose(self) -> ComposeResult:
+        return super().compose()
+
+    def watch_active(self, previously_active: str, active: str) -> None:
+        logging.debug(active)
+        return super().watch_active(previously_active, active)
 
 
 class NamesPanel(ScrollableContainer):
@@ -61,12 +79,15 @@ class DBuSPY(App):
     """A Textual app to manage stopwatches."""
 
     CSS_PATH = "DBuSPY.tcss"
+    BINDINGS = [
+        Binding("q", "quit", "Quit"),
+    ]
 
     def compose(self) -> ComposeResult:
         """Create child widgets for the app."""
         yield Header()
         yield Footer()
-        yield Tabs("session bus", "system bus")
+        yield BusTabs(id="buses")
         yield Horizontal(
             NamesPanel(id="names"),
             Vertical(
@@ -74,6 +95,14 @@ class DBuSPY(App):
                 MethodPanel(id="method"),
             ),
         )
+
+    def on_mount(self):
+        self.add_bus(Tab("session", id="session_bus"))
+        self.add_bus(Tab("system", id="system_bus"))
+
+    def add_bus(self, name: Tab):
+        buses = self.get_child_by_id("buses", expect_type=BusTabs)
+        buses.add_tab(name)
 
 
 def main():
