@@ -238,37 +238,45 @@ class DBusInterfacesTree(Tree):
         self.clear()
         logging.debug(instropection.tostring())
         for interface in instropection.interfaces:
-            interface_node = self.root.add(interface.name)
-            for prop in interface.properties:
-                prop_node = interface_node.add(
-                    rich.text.Text("{} [{}]".format(prop.name, prop.signature))
-                )
-                prop
-            for method in interface.methods:
-                in_sig = ",".join(
+            interface_node = self.root.add(interface.name, expand=True)
+
+            def signature_of(args):
+                return ",".join(
                     [
                         "{}{}".format(
-                            (arg.name if not arg.name is None else ""),
+                            (arg.name + ":" if not arg.name is None else ""),
                             arg.signature,
                         )
-                        for arg in method.in_args
+                        for arg in args
                     ]
                 )
-                out_sig = ",".join(
-                    [
-                        "{}{}".format(
-                            (arg.name if not arg.name is None else ""),
-                            arg.signature,
+
+            if len(interface.properties):
+                props_node = interface_node.add("Properties", expand=True)
+                for prop in interface.properties:
+                    props_node.add(
+                        "{} [dim]{}[/dim]".format(prop.name, prop.signature)
+                    )
+
+            if len(interface.methods):
+                methods_node = interface_node.add("Methods", expand=True)
+                for method in interface.methods:
+                    methods_node.add(
+                        "{} [dim]{} -> {}[/dim]".format(
+                            method.name,
+                            signature_of(method.in_args),
+                            signature_of(method.out_args),
                         )
-                        for arg in method.out_args
-                    ]
+                    )
+
+            signals_node = interface_node.add("Signals", expand=True)
+            for signal in interface.signals:
+                signals_node.add(
+                    "{} [dim]{}[/dim]".format(
+                        signal.name,
+                        signature_of(signal.args),
+                    )
                 )
-                sig = "{} -> {}".format(
-                    in_sig,
-                    out_sig,
-                )
-                text = rich.text.Text("{} [{}]".format(method.name, sig))
-                interface_node.add_leaf(text)
 
 
 class MethodPanel(Vertical):
