@@ -1,7 +1,16 @@
 /* vim: set ft=css: */
 
-Horizontal>ScrollableContainer {
-        width: 30%;
+#dbus_name_list_container {
+        min-width: 25%;
+        max-width: 50;
+}
+
+#object_tree_container {
+        width: 50%;
+}
+
+#interfaces_list_container {
+        width: 50%;
 }
 
 TreePanel {

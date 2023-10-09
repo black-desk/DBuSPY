@@ -1,7 +1,11 @@
-import logging, asyncio
-from typing import Optional
+import logging
+from typing import Optional, Tuple
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.constants import BusType
+from dbus_next.introspection import Node
+from dbus_next.signature import SignatureType
+from rich.style import Style
+import rich.text
 from textual import on
 from textual import work
 from textual.binding import Binding
@@ -48,6 +52,17 @@ class ActiveDBusNameChanged(Message):
         super().__init__()
         self.bus = bus
         self.name = name
+
+
+class ActiveDBusObjectChanged(Message):
+    def __init__(
+        self, bus: MessageBus, name: str, path: str, instropection: Node
+    ) -> None:
+        super().__init__()
+        self.bus = bus
+        self.name = name
+        self.path = path
+        self.instropection = instropection
 
 
 class BusTabs(Tabs):
@@ -114,31 +129,146 @@ class DBusNameList(ListView):
 
 
 class DBusObjectTree(Tree):
-    async def get_object_instropection(
-        self, bus: MessageBus, name: str, path: str
-    ) -> Optional[str]:
+    def __init__(
+        self,
+        label: str,
+        id: str,
+    ):
+        self.bus: MessageBus | None
+        self.dbus_name: str | None
+        super().__init__(label, id=id)
+
+    def get_path(self, node) -> str | None:
+        path = node.label.__str__()
+
+        while not node == self.root:
+            node = node.parent
+            if node is None:
+                logging.error("node is None")
+                return
+            if node.label.__str__() != "/":
+                path = "/" + path
+            path = node.label.__str__() + path
+
+        return path
+
+    async def get_object_instropection(self, path: str) -> Optional[Node]:
+        if self.bus is None:
+            return
+        if self.dbus_name is None:
+            return
+
         instropection = None
         try:
-            instropection = await bus.introspect(name, path)
+            instropection = await self.bus.introspect(self.dbus_name, path)
         except Exception:
             pass
 
         if instropection is None:
             logging.error(
                 "instropect dbus object of service {} on bus {} at {} failed".format(
-                    name, bus, path
+                    self.dbus_name, self.bus, path
                 )
             )
             return instropection
 
-        instropection = instropection.tostring()
         return instropection
 
+    @on(Tree.NodeSelected)
+    async def on_node_highlighted(self, event: Tree.NodeSelected):
+        if self.bus is None:
+            return
+        if self.dbus_name is None:
+            return
+
+        node = event.node
+        if node.data is None:
+            logging.error("no data found at highlighted node")
+            return
+
+        data: Tuple[str, Node] = node.data
+        (path, instropection) = data
+
+        self.post_message(
+            ActiveDBusObjectChanged(
+                self.bus, self.dbus_name, path, instropection
+            )
+        )
+
+    @on(Tree.NodeCollapsed)
+    async def on_node_collapsed(self, event: Tree.NodeCollapsed):
+        event.node.remove_children()
+
+    @on(Tree.NodeExpanded)
+    async def on_node_expanded(self, event: Tree.NodeExpanded):
+        if self.bus is None:
+            return
+
+        if self.dbus_name is None:
+            return
+
+        node = event.node
+
+        path = self.get_path(event.node)
+        if path is None:
+            return
+
+        instropection = await self.get_object_instropection(path)
+        if instropection is None:
+            return
+
+        node.data = (path, instropection)
+
+        for sub_node in instropection.nodes:
+            logging.debug(
+                "add node {} to tree at {}".format(sub_node.name, path)
+            )
+            node.add(sub_node.name)
+
+
+class DBusInterfacesTree(Tree):
+    def compose(self) -> ComposeResult:
+        self.root.expand()
+        return super().compose()
+
     @work(exclusive=True)
-    async def show_dbus_object_tree_of_dbus_name(
-        self, bus: MessageBus, name: str
+    async def update_content(
+        self, bus: MessageBus, name: str, path: str, instropection: Node
     ) -> None:
-        instropection = await self.get_object_instropection(bus, name, "/")
+        self.clear()
+        logging.debug(instropection.tostring())
+        for interface in instropection.interfaces:
+            interface_node = self.root.add(interface.name)
+            for prop in interface.properties:
+                prop_node = interface_node.add(
+                    rich.text.Text("{} [{}]".format(prop.name, prop.signature))
+                )
+                prop
+            for method in interface.methods:
+                in_sig = ",".join(
+                    [
+                        "{}{}".format(
+                            (arg.name if not arg.name is None else ""),
+                            arg.signature,
+                        )
+                        for arg in method.in_args
+                    ]
+                )
+                out_sig = ",".join(
+                    [
+                        "{}{}".format(
+                            (arg.name if not arg.name is None else ""),
+                            arg.signature,
+                        )
+                        for arg in method.out_args
+                    ]
+                )
+                sig = "{} -> {}".format(
+                    in_sig,
+                    out_sig,
+                )
+                text = rich.text.Text("{} [{}]".format(method.name, sig))
+                interface_node.add_leaf(text)
 
 
 class MethodPanel(Vertical):
@@ -191,9 +321,21 @@ class DBuSPY(App):
         yield Footer()
         yield BusTabs(id="buses_tabs")
         yield Horizontal(
-            ScrollableContainer(DBusNameList(id="dbus_name_list")),
+            ScrollableContainer(
+                DBusNameList(id="dbus_name_list"),
+                id="dbus_name_list_container",
+            ),
             Vertical(
-                ScrollableContainer(DBusObjectTree("/", id="tree")),
+                Horizontal(
+                    ScrollableContainer(
+                        DBusObjectTree("/", id="object_tree"),
+                        id="object_tree_container",
+                    ),
+                    ScrollableContainer(
+                        DBusInterfacesTree("Interfaces", id="interfaces_list"),
+                        id="interfaces_list_container",
+                    ),
+                ),
                 MethodPanel(id="method"),
             ),
         )
@@ -221,8 +363,22 @@ class DBuSPY(App):
 
     @on(ActiveDBusNameChanged)
     def on_active_dbus_name_changed(self, event: ActiveDBusNameChanged) -> None:
-        tree = self.get_widget_by_id("tree", expect_type=DBusObjectTree)
-        tree.show_dbus_object_tree_of_dbus_name(event.bus, event.name)
+        tree = self.get_widget_by_id("object_tree", expect_type=DBusObjectTree)
+        tree.clear()
+        tree.bus = event.bus
+        tree.dbus_name = event.name
+        tree.root.expand()
+
+    @on(ActiveDBusObjectChanged)
+    def on_active_dbus_object_changed(
+        self, event: ActiveDBusObjectChanged
+    ) -> None:
+        interfaces = self.get_widget_by_id(
+            "interfaces_list", expect_type=DBusInterfacesTree
+        )
+        interfaces.update_content(
+            event.bus, event.name, event.path, event.instropection
+        )
 
 
 def main():
