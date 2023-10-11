@@ -3,9 +3,6 @@ from typing import Optional, Tuple
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.constants import BusType
 from dbus_next.introspection import Node
-from dbus_next.signature import SignatureType
-from rich.style import Style
-import rich.text
 from textual import on
 from textual import work
 from textual.binding import Binding
@@ -268,15 +265,15 @@ class DBusInterfacesTree(Tree):
                             signature_of(method.out_args),
                         )
                     )
-
-            signals_node = interface_node.add("Signals", expand=True)
-            for signal in interface.signals:
-                signals_node.add(
-                    "{} [dim]{}[/dim]".format(
-                        signal.name,
-                        signature_of(signal.args),
+            if len(interface.signals):
+                signals_node = interface_node.add("Signals", expand=True)
+                for signal in interface.signals:
+                    signals_node.add(
+                        "{} [dim]{}[/dim]".format(
+                            signal.name,
+                            signature_of(signal.args),
+                        )
                     )
-                )
 
 
 class MethodPanel(Vertical):
