@@ -1,6 +1,8 @@
 import logging
+import xml.etree.ElementTree as ET
 from typing import Optional, Tuple
 from dbus_next.aio.message_bus import MessageBus
+from dbus_next.message import Message as DBusMessage
 from dbus_next.constants import BusType
 from dbus_next.introspection import Node
 from textual import on
@@ -53,7 +55,7 @@ class ActiveDBusNameChanged(Message):
 
 class ActiveDBusObjectChanged(Message):
     def __init__(
-        self, bus: MessageBus, name: str, path: str, instropection: Node
+        self, bus: MessageBus, name: str, path: str, instropection: ET.Element
     ) -> None:
         super().__init__()
         self.bus = bus
@@ -63,8 +65,7 @@ class ActiveDBusObjectChanged(Message):
 
 
 class BusTabs(Tabs):
-    def __init__(self, id: str | None = None) -> None:
-        super().__init__(id=id)
+    def on_mount(self) -> None:
         self.buses: dict[str, MessageBus] = {}
 
     def compose(self) -> ComposeResult:
@@ -80,8 +81,7 @@ class BusTabs(Tabs):
 
 
 class DBusNameList(ListView):
-    def __init__(self, id: str):
-        super().__init__(id=id)
+    def on_mount(self) -> None:
         self.bus: Optional[MessageBus] = None
 
     @work(exclusive=True)
@@ -101,9 +101,10 @@ class DBusNameList(ListView):
 
         logging.debug(names)
 
-        await self.clear()
+        self.clear()
+
         for name in names:
-            await self.append(ListItem(Label(name)))
+            self.append(ListItem(Label(name)))
 
     def watch_index(self, old_index: int, new_index: int) -> None:
         super().watch_index(old_index, new_index)
@@ -126,14 +127,11 @@ class DBusNameList(ListView):
 
 
 class DBusObjectTree(Tree):
-    def __init__(
-        self,
-        label: str,
-        id: str,
-    ):
+    def on_mount(self) -> None:
         self.bus: MessageBus | None
         self.dbus_name: str | None
-        super().__init__(label, id=id)
+        self.guide_depth = 2
+        return super().on_mount()
 
     def get_path(self, node) -> str | None:
         path = node.label.__str__()
@@ -149,7 +147,7 @@ class DBusObjectTree(Tree):
 
         return path
 
-    async def get_object_instropection(self, path: str) -> Optional[Node]:
+    async def get_object_instropection(self, path: str) -> Optional[ET.Element]:
         if self.bus is None:
             return
         if self.dbus_name is None:
@@ -157,7 +155,14 @@ class DBusObjectTree(Tree):
 
         instropection = None
         try:
-            instropection = await self.bus.introspect(self.dbus_name, path)
+            instropection = await self.bus.call(
+                DBusMessage(
+                    destination=self.dbus_name,
+                    path=path,
+                    interface="org.freedesktop.DBus.Introspectable",
+                    member="Introspect",
+                )
+            )
         except Exception:
             pass
 
@@ -167,9 +172,9 @@ class DBusObjectTree(Tree):
                     self.dbus_name, self.bus, path
                 )
             )
-            return instropection
+            return None
 
-        return instropection
+        return ET.fromstringlist(instropection.body[0])
 
     @on(Tree.NodeSelected)
     async def on_node_highlighted(self, event: Tree.NodeSelected):
@@ -183,7 +188,7 @@ class DBusObjectTree(Tree):
             logging.error("no data found at highlighted node")
             return
 
-        data: Tuple[str, Node] = node.data
+        data: Tuple[str, ET.Element] = node.data
         (path, instropection) = data
 
         self.post_message(
@@ -216,62 +221,92 @@ class DBusObjectTree(Tree):
 
         node.data = (path, instropection)
 
-        for sub_node in instropection.nodes:
-            logging.debug(
-                "add node {} to tree at {}".format(sub_node.name, path)
-            )
-            node.add(sub_node.name)
+        for sub_node in instropection:
+            if sub_node.tag != "node":
+                continue
+            name = sub_node.attrib["name"]
+            logging.debug("add node {} to tree at {}".format(name, path))
+            node.add(name, path)
 
 
 class DBusInterfacesTree(Tree):
+    def on_mount(self):
+        self.guide_depth = 2
+        return super().on_mount()
+
     def compose(self) -> ComposeResult:
         self.root.expand()
         return super().compose()
 
     @work(exclusive=True)
     async def update_content(
-        self, bus: MessageBus, name: str, path: str, instropection: Node
+        self, bus: MessageBus, name: str, path: str, instropection: ET.Element
     ) -> None:
         self.clear()
-        logging.debug(instropection.tostring())
-        for interface in instropection.interfaces:
-            interface_node = self.root.add(interface.name, expand=True)
+        logging.debug(instropection)
+        for interface in instropection:
+            if interface.tag != "interface":
+                continue
+
+            interface_node = self.root.add(
+                interface.attrib["name"], expand=True
+            )
 
             def signature_of(args):
                 return ",".join(
                     [
                         "{}{}".format(
-                            (arg.name + ":" if not arg.name is None else ""),
-                            arg.signature,
+                            (
+                                arg.get("name") + ":"
+                                if not arg.get("name") is None
+                                else ""
+                            ),
+                            arg.attrib["type"],
                         )
                         for arg in args
                     ]
                 )
 
-            if len(interface.properties):
+            properties = interface.findall("property")
+            if len(properties):
                 props_node = interface_node.add("Properties", expand=True)
-                for prop in interface.properties:
-                    props_node.add(
-                        "{} [dim]{}[/dim]".format(prop.name, prop.signature)
+                for prop in properties:
+                    props_text = "{} [dim]{}[/dim]".format(
+                        prop.attrib["name"], prop.attrib["type"]
                     )
+                    props_node.add_leaf(props_text)
 
-            if len(interface.methods):
+            methods = interface.findall("method")
+            if len(methods):
                 methods_node = interface_node.add("Methods", expand=True)
-                for method in interface.methods:
+                for method in methods:
                     methods_node.add(
                         "{} [dim]{} -> {}[/dim]".format(
-                            method.name,
-                            signature_of(method.in_args),
-                            signature_of(method.out_args),
+                            method.attrib["name"],
+                            signature_of(
+                                [
+                                    arg
+                                    for arg in method.findall("arg")
+                                    if arg.attrib["direction"] == "in"
+                                ]
+                            ),
+                            signature_of(
+                                [
+                                    arg
+                                    for arg in method.findall("arg")
+                                    if arg.attrib["direction"] == "out"
+                                ]
+                            ),
                         )
                     )
-            if len(interface.signals):
+            signals = interface.findall("signal")
+            if len(signals):
                 signals_node = interface_node.add("Signals", expand=True)
-                for signal in interface.signals:
+                for signal in signals:
                     signals_node.add(
                         "{} [dim]{}[/dim]".format(
-                            signal.name,
-                            signature_of(signal.args),
+                            signal.attrib["name"],
+                            signature_of(signal.findall("arg")),
                         )
                     )
 
