@@ -5,8 +5,7 @@ from dbus_next.aio.message_bus import MessageBus
 from dbus_next.message import Message as DBusMessage
 from dbus_next.constants import BusType
 from dbus_next.introspection import Node
-from textual import on
-from textual import work
+from textual import on, work, events
 from textual.binding import Binding
 from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
@@ -33,6 +32,14 @@ logging.basicConfig(
 )
 
 
+class ExpandContainer(Message):
+    pass
+
+
+class ResetContainer(Message):
+    pass
+
+
 class NewBus(Message):
     def __init__(self, name: str, bus: MessageBus) -> None:
         super().__init__()
@@ -47,21 +54,38 @@ class ActiveBusChanged(Message):
 
 
 class ActiveDBusNameChanged(Message):
-    def __init__(self, bus: MessageBus, name: str) -> None:
+    def __init__(
+        self, bus: MessageBus, old_name: Optional[str], name: str
+    ) -> None:
         super().__init__()
         self.bus = bus
+        self.old_name = old_name
         self.name = name
 
 
 class ActiveDBusObjectChanged(Message):
     def __init__(
-        self, bus: MessageBus, name: str, path: str, instropection: ET.Element
+        self,
+        bus: MessageBus,
+        name: str,
+        path: str,
+        instropection: ET.Element,
     ) -> None:
         super().__init__()
         self.bus = bus
         self.name = name
         self.path = path
         self.instropection = instropection
+
+
+class FocusScrollableContainer(ScrollableContainer):
+    @on(ExpandContainer)
+    def on_expand_container(self) -> None:
+        self.set_styles("min-width: 40%;")
+
+    @on(ResetContainer)
+    def on_reset_container(self) -> None:
+        self.set_styles("min-width: 0;")
 
 
 class BusTabs(Tabs):
@@ -83,6 +107,14 @@ class BusTabs(Tabs):
 class DBusNameList(ListView):
     def on_mount(self) -> None:
         self.bus: Optional[MessageBus] = None
+
+    @on(events.Focus)
+    async def on_focus(self):
+        self.post_message(ExpandContainer())
+
+    @on(events.Blur)
+    async def on_blur(self):
+        self.post_message(ResetContainer())
 
     @work(exclusive=True)
     async def switch_to_bus(self, bus: MessageBus):
@@ -118,6 +150,11 @@ class DBusNameList(ListView):
         self.post_message(
             ActiveDBusNameChanged(
                 self.bus,
+                self.children[old_index]
+                .get_child_by_type(Label)
+                .renderable.__str__()
+                if not old_index is None
+                else None,
                 self.children[new_index]
                 .get_child_by_type(Label)
                 .renderable.__str__(),
@@ -130,8 +167,16 @@ class DBusObjectTree(Tree):
     def on_mount(self) -> None:
         self.bus: MessageBus | None
         self.dbus_name: str | None
-        self.guide_depth = 2
+        self.guide_depth = 3
         return super().on_mount()
+
+    @on(events.Focus)
+    async def on_focus(self):
+        self.post_message(ExpandContainer())
+
+    @on(events.Blur)
+    async def on_blur(self):
+        self.post_message(ResetContainer())
 
     def get_path(self, node) -> str | None:
         path = node.label.__str__()
@@ -173,11 +218,15 @@ class DBusObjectTree(Tree):
                 )
             )
             return None
+        try:
+            return ET.fromstringlist(instropection.body[0])
+        except Exception:
+            pass
 
-        return ET.fromstringlist(instropection.body[0])
+        return None
 
     @on(Tree.NodeSelected)
-    async def on_node_highlighted(self, event: Tree.NodeSelected):
+    async def on_node_selected(self, event: Tree.NodeSelected):
         if self.bus is None:
             return
         if self.dbus_name is None:
@@ -231,8 +280,16 @@ class DBusObjectTree(Tree):
 
 class DBusInterfacesTree(Tree):
     def on_mount(self):
-        self.guide_depth = 2
+        self.guide_depth = 3
         return super().on_mount()
+
+    @on(events.Focus)
+    async def on_focus(self):
+        self.post_message(ExpandContainer())
+
+    @on(events.Blur)
+    async def on_blur(self):
+        self.post_message(ResetContainer())
 
     def compose(self) -> ComposeResult:
         self.root.expand()
@@ -252,6 +309,8 @@ class DBusInterfacesTree(Tree):
                 interface.attrib["name"], expand=True
             )
 
+            interface_node.expand()
+
             def signature_of(args):
                 return ",".join(
                     [
@@ -269,46 +328,72 @@ class DBusInterfacesTree(Tree):
 
             properties = interface.findall("property")
             if len(properties):
-                props_node = interface_node.add("Properties", expand=True)
+                props_node = interface_node.add("Properties:", expand=True)
                 for prop in properties:
                     props_text = "{} [dim]{}[/dim]".format(
                         prop.attrib["name"], prop.attrib["type"]
                     )
-                    props_node.add_leaf(props_text)
+                    annos = prop.findall("annotation")
+                    if len(annos):
+                        node = props_node.add(props_text).expand()
+                        node = node.add("Annotations:").expand()
+                        for anno in annos:
+                            node.add(anno.attrib["name"]).expand().add_leaf(
+                                anno.attrib["value"]
+                            )
+                    else:
+                        props_node.add_leaf("  " + props_text)
 
             methods = interface.findall("method")
             if len(methods):
-                methods_node = interface_node.add("Methods", expand=True)
+                methods_node = interface_node.add("Methods:", expand=True)
                 for method in methods:
-                    methods_node.add(
-                        "{} [dim]{} -> {}[/dim]".format(
-                            method.attrib["name"],
-                            signature_of(
-                                [
-                                    arg
-                                    for arg in method.findall("arg")
-                                    if arg.attrib["direction"] == "in"
-                                ]
-                            ),
-                            signature_of(
-                                [
-                                    arg
-                                    for arg in method.findall("arg")
-                                    if arg.attrib["direction"] == "out"
-                                ]
-                            ),
-                        )
+                    method_text = "{} [dim]{} -> {}[/dim]".format(
+                        method.attrib["name"],
+                        signature_of(
+                            [
+                                arg
+                                for arg in method.findall("arg")
+                                if arg.attrib["direction"] == "in"
+                            ]
+                        ),
+                        signature_of(
+                            [
+                                arg
+                                for arg in method.findall("arg")
+                                if arg.attrib["direction"] == "out"
+                            ]
+                        ),
                     )
+                    annos = method.findall("annotation")
+                    if len(annos):
+                        node = methods_node.add(method_text).expand()
+                        node = node.add("Annotations:").expand()
+                        for anno in annos:
+                            node.add(anno.attrib["name"]).expand().add_leaf(
+                                anno.attrib["value"]
+                            )
+
+                    else:
+                        methods_node.add_leaf("  " + method_text)
             signals = interface.findall("signal")
             if len(signals):
-                signals_node = interface_node.add("Signals", expand=True)
+                signals_node = interface_node.add("Signals:", expand=True)
                 for signal in signals:
-                    signals_node.add(
-                        "{} [dim]{}[/dim]".format(
-                            signal.attrib["name"],
-                            signature_of(signal.findall("arg")),
-                        )
+                    signal_text = "{} [dim]{}[/dim]".format(
+                        signal.attrib["name"],
+                        signature_of(signal.findall("arg")),
                     )
+                    annos = signal.findall("annotation")
+                    if len(annos):
+                        node = signals_node.add(signal_text).expand()
+                        node = node.add("Annotations:").expand()
+                        for anno in annos:
+                            node.add(anno.attrib["name"]).expand().add_leaf(
+                                anno.attrib["value"]
+                            )
+                    else:
+                        signals_node.add_leaf("  " + signal_text)
 
 
 class MethodPanel(Vertical):
@@ -361,27 +446,23 @@ class DBuSPY(App):
         yield Footer()
         yield BusTabs(id="buses_tabs")
         yield Horizontal(
-            ScrollableContainer(
+            FocusScrollableContainer(
                 DBusNameList(id="dbus_name_list"),
-                id="dbus_name_list_container",
             ),
-            Vertical(
-                Horizontal(
-                    ScrollableContainer(
-                        DBusObjectTree("/", id="object_tree"),
-                        id="object_tree_container",
-                    ),
-                    ScrollableContainer(
-                        DBusInterfacesTree("Interfaces", id="interfaces_list"),
-                        id="interfaces_list_container",
-                    ),
-                ),
-                MethodPanel(id="method"),
+            FocusScrollableContainer(
+                DBusObjectTree("/", id="object_tree"),
             ),
+            FocusScrollableContainer(
+                DBusInterfacesTree("Interfaces:", id="interfaces_list"),
+            ),
+            FocusScrollableContainer(MethodPanel(id="method")),
         )
 
     def on_mount(self):
         self.add_buses()
+        self.get_widget_by_id(
+            "dbus_name_list", expect_type=DBusNameList
+        ).focus()
 
     @work()
     async def add_buses(self):
@@ -408,6 +489,8 @@ class DBuSPY(App):
         tree.bus = event.bus
         tree.dbus_name = event.name
         tree.root.expand()
+        if not event.old_name is None:
+            tree.focus()
 
     @on(ActiveDBusObjectChanged)
     def on_active_dbus_object_changed(
@@ -419,6 +502,7 @@ class DBuSPY(App):
         interfaces.update_content(
             event.bus, event.name, event.path, event.instropection
         )
+        interfaces.focus()
 
 
 def main():

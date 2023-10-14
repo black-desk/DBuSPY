@@ -1,25 +1,10 @@
 /* vim: set ft=css: */
 
-#dbus_name_list_container {
-        min-width: 25%;
-        max-width: 50;
-}
-
-#object_tree_container {
-        width: 50%;
-}
-
-#interfaces_list_container {
-        width: 50%;
-}
-
-TreePanel {
-        max-height: 80%;
-}
-
 MethodPanel{
         height: 15;
+        min-width: 35;
 }
+
 MethodPanel Label {
         height: 3;
         content-align: center middle;
