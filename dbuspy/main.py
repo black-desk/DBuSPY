@@ -11,6 +11,8 @@ from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
 from textual.containers import ScrollableContainer, Vertical, Horizontal
 from textual.message import Message
+from textual.scroll_view import ScrollView
+from textual.widget import Widget
 from textual.widgets import (
     ListItem,
     Markdown,
@@ -25,19 +27,64 @@ from textual.widgets import (
     ListView,
     Label,
 )
+from dataclasses import dataclass
+
+
+@dataclass
+class NextColumn(events.Event):
+    widget: Widget
+
+
+class MainHorizontal(Horizontal):
+    def on_mount(self):
+        self.focusedColum = 0
+
+    @on(events.DescendantFocus)
+    def on_descendant_focus(self, event: events.DescendantFocus) -> None:
+        widget = event.widget
+        while widget.parent and widget.parent != self:
+            widget = widget.parent
+
+        if widget.parent != self:
+            logging.error("WHAT THE FUCK?")
+            return
+
+        for idx, child_widget in enumerate(self.children):
+            if child_widget == widget:
+                child_widget.set_styles("min-width: 40%;")
+                self.focusedColum = idx
+            else:
+                child_widget.set_styles("min-width: 0;")
+
+    @on(NextColumn)
+    def on_next_column(self, event: NextColumn) -> None:
+        widget = event.widget
+        if widget is None:
+            logging.error("WHAT THE FUCK?")
+            return
+
+        while widget.parent and widget.parent != self:
+            widget = widget.parent
+
+        if widget.parent != self:
+            logging.error("WHAT THE FUCK?")
+            return
+
+        idx = 0
+
+        for idx, _ in enumerate(self.children):
+            if self.children[idx] == widget:
+                break
+
+        idx = min(idx + 1, len(self.children))
+
+        self.children[idx].children[0].focus()
+
 
 logging.basicConfig(
     level="NOTSET",
     handlers=[TextualHandler()],
 )
-
-
-class ExpandContainer(Message):
-    pass
-
-
-class ResetContainer(Message):
-    pass
 
 
 class NewBus(Message):
@@ -78,16 +125,6 @@ class ActiveDBusObjectChanged(Message):
         self.instropection = instropection
 
 
-class FocusScrollableContainer(ScrollableContainer):
-    @on(ExpandContainer)
-    def on_expand_container(self) -> None:
-        self.set_styles("min-width: 40%;")
-
-    @on(ResetContainer)
-    def on_reset_container(self) -> None:
-        self.set_styles("min-width: 0;")
-
-
 class BusTabs(Tabs):
     def on_mount(self) -> None:
         self.buses: dict[str, MessageBus] = {}
@@ -107,14 +144,6 @@ class BusTabs(Tabs):
 class DBusNameList(ListView):
     def on_mount(self) -> None:
         self.bus: Optional[MessageBus] = None
-
-    @on(events.Focus)
-    async def on_focus(self):
-        self.post_message(ExpandContainer())
-
-    @on(events.Blur)
-    async def on_blur(self):
-        self.post_message(ResetContainer())
 
     @work(exclusive=True)
     async def switch_to_bus(self, bus: MessageBus):
@@ -147,6 +176,9 @@ class DBusNameList(ListView):
         if new_index is None:
             return
 
+        if old_index == new_index:
+            self.post_message(NextColumn(self))
+
         self.post_message(
             ActiveDBusNameChanged(
                 self.bus,
@@ -169,14 +201,6 @@ class DBusObjectTree(Tree):
         self.dbus_name: str | None
         self.guide_depth = 3
         return super().on_mount()
-
-    @on(events.Focus)
-    async def on_focus(self):
-        self.post_message(ExpandContainer())
-
-    @on(events.Blur)
-    async def on_blur(self):
-        self.post_message(ResetContainer())
 
     def get_path(self, node) -> str | None:
         path = node.label.__str__()
@@ -246,16 +270,15 @@ class DBusObjectTree(Tree):
             )
         )
 
-    @on(Tree.NodeCollapsed)
-    async def on_node_collapsed(self, event: Tree.NodeCollapsed):
-        event.node.remove_children()
-
     @on(Tree.NodeExpanded)
     async def on_node_expanded(self, event: Tree.NodeExpanded):
         if self.bus is None:
             return
 
         if self.dbus_name is None:
+            return
+
+        if event.node.children:
             return
 
         node = event.node
@@ -266,30 +289,53 @@ class DBusObjectTree(Tree):
 
         instropection = await self.get_object_instropection(path)
         if instropection is None:
+            node.allow_expand = False
             return
 
         node.data = (path, instropection)
 
+        has_sub_node = False
+
         for sub_node in instropection:
             if sub_node.tag != "node":
                 continue
+            has_sub_node = True
             name = sub_node.attrib["name"]
             logging.debug("add node {} to tree at {}".format(name, path))
             node.add(name, path)
+
+        if not has_sub_node:
+            node.allow_expand = False
+            return
+
+    @on(events.Key)
+    def on_key(self, event: events.Key):
+        if event.key != "enter":
+            pass
+
+        node = self.get_node_at_line(self.cursor_line)
+
+        if node is None:
+            return
+
+        if not node.allow_expand:
+            self.post_message(NextColumn(self))
+
+    def watch_cursor_line(self, previous_line: int, line: int) -> None:
+        super().watch_cursor_line(previous_line, line)
+
+        if previous_line == None:
+            return
+
+        if previous_line == line:
+            self.post_message(NextColumn(self))
+
 
 
 class DBusInterfacesTree(Tree):
     def on_mount(self):
         self.guide_depth = 3
         return super().on_mount()
-
-    @on(events.Focus)
-    async def on_focus(self):
-        self.post_message(ExpandContainer())
-
-    @on(events.Blur)
-    async def on_blur(self):
-        self.post_message(ResetContainer())
 
     def compose(self) -> ComposeResult:
         self.root.expand()
@@ -445,17 +491,17 @@ class DBuSPY(App):
         yield Header()
         yield Footer()
         yield BusTabs(id="buses_tabs")
-        yield Horizontal(
-            FocusScrollableContainer(
+        yield MainHorizontal(
+            ScrollView(
                 DBusNameList(id="dbus_name_list"),
             ),
-            FocusScrollableContainer(
+            ScrollView(
                 DBusObjectTree("/", id="object_tree"),
             ),
-            FocusScrollableContainer(
+            ScrollView(
                 DBusInterfacesTree("Interfaces:", id="interfaces_list"),
             ),
-            FocusScrollableContainer(MethodPanel(id="method")),
+            ScrollView(MethodPanel(id="method")),
         )
 
     def on_mount(self):
@@ -489,8 +535,6 @@ class DBuSPY(App):
         tree.bus = event.bus
         tree.dbus_name = event.name
         tree.root.expand()
-        if not event.old_name is None:
-            tree.focus()
 
     @on(ActiveDBusObjectChanged)
     def on_active_dbus_object_changed(
@@ -502,7 +546,6 @@ class DBuSPY(App):
         interfaces.update_content(
             event.bus, event.name, event.path, event.instropection
         )
-        interfaces.focus()
 
 
 def main():
