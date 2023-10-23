@@ -1,6 +1,6 @@
 import logging
 import xml.etree.ElementTree as ET
-from typing import Optional, Tuple
+from typing import Optional, Sequence, Tuple
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.message import Message as DBusMessage
 from dbus_next.constants import BusType
@@ -9,7 +9,12 @@ from textual import on, work, events
 from textual.binding import Binding
 from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
-from textual.containers import ScrollableContainer, Vertical, Horizontal
+from textual.containers import (
+    ScrollableContainer,
+    Vertical,
+    Horizontal,
+    VerticalScroll,
+)
 from textual.message import Message
 from textual.scroll_view import ScrollView
 from textual.widget import Widget
@@ -78,7 +83,23 @@ class MainHorizontal(Horizontal):
 
         idx = min(idx + 1, len(self.children))
 
-        self.children[idx].children[0].focus()
+        widget = get_first_focusable(self.children[idx].children[1].children)
+        if widget is None:
+            logging.error("WHAT THE FUCK?")
+            return
+
+        widget.focus()
+
+
+def get_first_focusable(widgets: Sequence[Widget]) -> Optional[Widget]:
+    for widget in widgets:
+        if widget.can_focus:
+            return widget
+        ret = get_first_focusable(widget.children)
+        if not ret is None:
+            return ret
+
+    return None
 
 
 logging.basicConfig(
@@ -176,9 +197,6 @@ class DBusNameList(ListView):
         if new_index is None:
             return
 
-        if old_index == new_index:
-            self.post_message(NextColumn(self))
-
         self.post_message(
             ActiveDBusNameChanged(
                 self.bus,
@@ -193,6 +211,13 @@ class DBusNameList(ListView):
             )
         )
         return
+
+    @on(events.Key)
+    def on_key(self, e: events.Key) -> None:
+        if e.key != "enter":
+            return
+
+        self.post_message(NextColumn(self))
 
 
 class DBusObjectTree(Tree):
@@ -306,12 +331,13 @@ class DBusObjectTree(Tree):
 
         if not has_sub_node:
             node.allow_expand = False
+            self.post_message(NextColumn(self))
             return
 
     @on(events.Key)
     def on_key(self, event: events.Key):
         if event.key != "enter":
-            pass
+            return
 
         node = self.get_node_at_line(self.cursor_line)
 
@@ -321,20 +347,11 @@ class DBusObjectTree(Tree):
         if not node.allow_expand:
             self.post_message(NextColumn(self))
 
-    def watch_cursor_line(self, previous_line: int, line: int) -> None:
-        super().watch_cursor_line(previous_line, line)
-
-        if previous_line == None:
-            return
-
-        if previous_line == line:
-            self.post_message(NextColumn(self))
-
-
 
 class DBusInterfacesTree(Tree):
     def on_mount(self):
         self.guide_depth = 3
+        self.show_root = False
         return super().on_mount()
 
     def compose(self) -> ComposeResult:
@@ -379,16 +396,7 @@ class DBusInterfacesTree(Tree):
                     props_text = "{} [dim]{}[/dim]".format(
                         prop.attrib["name"], prop.attrib["type"]
                     )
-                    annos = prop.findall("annotation")
-                    if len(annos):
-                        node = props_node.add(props_text).expand()
-                        node = node.add("Annotations:").expand()
-                        for anno in annos:
-                            node.add(anno.attrib["name"]).expand().add_leaf(
-                                anno.attrib["value"]
-                            )
-                    else:
-                        props_node.add_leaf("  " + props_text)
+                    props_node.add_leaf(props_text)
 
             methods = interface.findall("method")
             if len(methods):
@@ -411,17 +419,8 @@ class DBusInterfacesTree(Tree):
                             ]
                         ),
                     )
-                    annos = method.findall("annotation")
-                    if len(annos):
-                        node = methods_node.add(method_text).expand()
-                        node = node.add("Annotations:").expand()
-                        for anno in annos:
-                            node.add(anno.attrib["name"]).expand().add_leaf(
-                                anno.attrib["value"]
-                            )
+                    methods_node.add_leaf(method_text)
 
-                    else:
-                        methods_node.add_leaf("  " + method_text)
             signals = interface.findall("signal")
             if len(signals):
                 signals_node = interface_node.add("Signals:", expand=True)
@@ -430,16 +429,20 @@ class DBusInterfacesTree(Tree):
                         signal.attrib["name"],
                         signature_of(signal.findall("arg")),
                     )
-                    annos = signal.findall("annotation")
-                    if len(annos):
-                        node = signals_node.add(signal_text).expand()
-                        node = node.add("Annotations:").expand()
-                        for anno in annos:
-                            node.add(anno.attrib["name"]).expand().add_leaf(
-                                anno.attrib["value"]
-                            )
-                    else:
-                        signals_node.add_leaf("  " + signal_text)
+                    signals_node.add_leaf(signal_text)
+
+    @on(events.Key)
+    def on_key(self, event: events.Key):
+        if event.key != "enter":
+            return
+
+        node = self.get_node_at_line(self.cursor_line)
+
+        if node is None:
+            return
+
+        if not node.allow_expand:
+            self.post_message(NextColumn(self))
 
 
 class MethodPanel(Vertical):
@@ -491,18 +494,34 @@ class DBuSPY(App):
         yield Header()
         yield Footer()
         yield BusTabs(id="buses_tabs")
-        yield MainHorizontal(
-            ScrollView(
-                DBusNameList(id="dbus_name_list"),
-            ),
-            ScrollView(
-                DBusObjectTree("/", id="object_tree"),
-            ),
-            ScrollView(
-                DBusInterfacesTree("Interfaces:", id="interfaces_list"),
-            ),
-            ScrollView(MethodPanel(id="method")),
-        )
+        with MainHorizontal():
+            yield Vertical(
+                Label("DBus Names"),
+                VerticalScroll(
+                    DBusNameList(id="dbus_name_list"),
+                ),
+            )
+            yield Vertical(
+                Label("DBus Objects"),
+                VerticalScroll(
+                    DBusObjectTree("/", id="object_tree"),
+                ),
+            )
+            yield Vertical(
+                Label("DBus Interfaces"),
+                VerticalScroll(
+                    DBusInterfacesTree(
+                        "Interfaces:",
+                        id="interfaces_list",
+                    ),
+                ),
+            )
+            yield Vertical(
+                Label("Details"),
+                VerticalScroll(
+                    MethodPanel(id="method"),
+                ),
+            )
 
     def on_mount(self):
         self.add_buses()
