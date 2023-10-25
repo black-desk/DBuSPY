@@ -11,7 +11,16 @@ MethodPanel Label {
         width: 15%;
 }
 
-#call_layout{
+.fixHorizon {
+        overflow: hidden auto;
+}
+
+#details{
+        grid-size: 2;
+        grid-columns: 11 3fr;
+}
+
+#call_layout {
         align: right middle;
 }
 

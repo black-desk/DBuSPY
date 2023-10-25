@@ -1,15 +1,17 @@
 import logging
 import xml.etree.ElementTree as ET
-from typing import Optional, Sequence, Tuple
+from typing import Container, Optional, Sequence, Tuple
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.message import Message as DBusMessage
 from dbus_next.constants import BusType
 from dbus_next.introspection import Node
+from rich.console import RenderableType
 from textual import on, work, events
 from textual.binding import Binding
 from textual.logging import TextualHandler
 from textual.app import App, ComposeResult
 from textual.containers import (
+    Grid,
     ScrollableContainer,
     Vertical,
     Horizontal,
@@ -21,7 +23,9 @@ from textual.widget import Widget
 from textual.widgets import (
     ListItem,
     Markdown,
+    Rule,
     Select,
+    Static,
     Tab,
     Tabs,
     Input,
@@ -56,7 +60,7 @@ class MainHorizontal(Horizontal):
 
         for idx, child_widget in enumerate(self.children):
             if child_widget == widget:
-                child_widget.set_styles("min-width: 40%;")
+                child_widget.set_styles("min-width: 35%;")
                 self.focusedColum = idx
             else:
                 child_widget.set_styles("min-width: 0;")
@@ -81,7 +85,7 @@ class MainHorizontal(Horizontal):
             if self.children[idx] == widget:
                 break
 
-        idx = min(idx + 1, len(self.children))
+        idx = min(idx + 2, len(self.children))
 
         widget = get_first_focusable(self.children[idx].children[1].children)
         if widget is None:
@@ -134,16 +138,27 @@ class ActiveDBusNameChanged(Message):
 class ActiveDBusObjectChanged(Message):
     def __init__(
         self,
-        bus: MessageBus,
-        name: str,
         path: str,
         instropection: ET.Element,
     ) -> None:
         super().__init__()
-        self.bus = bus
-        self.name = name
         self.path = path
         self.instropection = instropection
+
+
+class ActiveDBusInterfaceChanged(Message):
+    def __init__(
+        self,
+        interface: str,
+    ) -> None:
+        super().__init__()
+        self.interface = interface
+
+
+class ActiveDBusInterfaceMemberChanged(Message):
+    def __init__(self, name: RenderableType) -> None:
+        super().__init__()
+        self.name = name
 
 
 class BusTabs(Tabs):
@@ -289,11 +304,7 @@ class DBusObjectTree(Tree):
         data: Tuple[str, ET.Element] = node.data
         (path, instropection) = data
 
-        self.post_message(
-            ActiveDBusObjectChanged(
-                self.bus, self.dbus_name, path, instropection
-            )
-        )
+        self.post_message(ActiveDBusObjectChanged(path, instropection))
 
     @on(Tree.NodeExpanded)
     async def on_node_expanded(self, event: Tree.NodeExpanded):
@@ -359,20 +370,30 @@ class DBusInterfacesTree(Tree):
         return super().compose()
 
     @work(exclusive=True)
-    async def update_content(
-        self, bus: MessageBus, name: str, path: str, instropection: ET.Element
-    ) -> None:
+    async def update_content(self, instropection: ET.Element) -> None:
         self.clear()
         logging.debug(instropection)
+        interfaces: list[ET.Element] = []
         for interface in instropection:
             if interface.tag != "interface":
                 continue
 
-            interface_node = self.root.add(
-                interface.attrib["name"], expand=True
-            )
+            if interface.attrib["name"] in [
+                "org.freedesktop.DBus.Peer",
+                "org.freedesktop.DBus.Properties",
+                "org.freedesktop.DBus.Introspectable",
+            ]:
+                continue
 
-            interface_node.expand()
+            interfaces.append(interface)
+
+        interfaces.sort(key=lambda x: x.attrib["name"])
+
+        for interface in interfaces:
+            interface_node = self.root.add(
+                interface.attrib["name"],
+                expand=True,
+            )
 
             def signature_of(args):
                 return ",".join(
@@ -444,11 +465,28 @@ class DBusInterfacesTree(Tree):
         if not node.allow_expand:
             self.post_message(NextColumn(self))
 
+    def watch_cursor_line(self, previous_line: int, line: int) -> None:
+        if previous_line is None:
+            return
+        if line is None or line is 1:
+            return
+        node = self.get_node_at_line(line)
+        if node is None:
+            return
+        if node is self.root:
+            return
+
+        self.post_message(ActiveDBusInterfaceMemberChanged(node.label))
+
+        while node != None and node.parent != None and node.parent != self.root:
+            node = node.parent
+
+        self.post_message(ActiveDBusInterfaceChanged(node.label.__str__()))
+        return super().watch_cursor_line(previous_line, line)
+
 
 class MethodPanel(Vertical):
     def compose(self) -> ComposeResult:
-        yield Input(placeholder="Arguments")
-
         yield Horizontal(
             Label(
                 "copy as",
@@ -498,28 +536,52 @@ class DBuSPY(App):
             yield Vertical(
                 Label("DBus Names"),
                 VerticalScroll(
-                    DBusNameList(id="dbus_name_list"),
+                    DBusNameList(
+                        id="dbus_name_list",
+                        classes="fixHorizon",
+                    ),
                 ),
             )
+            yield Rule(orientation="vertical")
             yield Vertical(
                 Label("DBus Objects"),
                 VerticalScroll(
-                    DBusObjectTree("/", id="object_tree"),
+                    DBusObjectTree(
+                        "/",
+                        id="object_tree",
+                        classes="fixHorizon",
+                    ),
                 ),
             )
+            yield Rule(orientation="vertical")
             yield Vertical(
                 Label("DBus Interfaces"),
                 VerticalScroll(
                     DBusInterfacesTree(
                         "Interfaces:",
                         id="interfaces_list",
+                        classes="fixHorizon",
                     ),
                 ),
             )
+            yield Rule(orientation="vertical")
             yield Vertical(
                 Label("Details"),
                 VerticalScroll(
-                    MethodPanel(id="method"),
+                    Grid(
+                        Label("Bus: "),
+                        Label("Unavailable", id="bus"),
+                        Label("Name: "),
+                        Label("Unavailable", id="name"),
+                        Label("Object: "),
+                        Label("/", id="object"),
+                        Label("Interface: "),
+                        Label("Unavailable", id="interface"),
+                        Label("Member: "),
+                        Label("Unavailable", id="member"),
+                        id="details",
+                    ),
+                    MethodPanel(),
                 ),
             )
 
@@ -555,6 +617,11 @@ class DBuSPY(App):
         tree.dbus_name = event.name
         tree.root.expand()
 
+        bus = self.get_widget_by_id("bus", expect_type=Label)
+        bus.update(event.bus._bus_address[0][1]["path"])
+        name = self.get_widget_by_id("name", expect_type=Label)
+        name.update(event.name)
+
     @on(ActiveDBusObjectChanged)
     def on_active_dbus_object_changed(
         self, event: ActiveDBusObjectChanged
@@ -562,9 +629,25 @@ class DBuSPY(App):
         interfaces = self.get_widget_by_id(
             "interfaces_list", expect_type=DBusInterfacesTree
         )
-        interfaces.update_content(
-            event.bus, event.name, event.path, event.instropection
-        )
+        interfaces.update_content(event.instropection)
+
+        obj = self.get_widget_by_id("object", expect_type=Label)
+        obj.update(event.path)
+
+    @on(ActiveDBusInterfaceChanged)
+    def on_active_dbus_interface_changed(
+        self, event: ActiveDBusInterfaceChanged
+    ) -> None:
+        interface = self.get_widget_by_id("interface", expect_type=Label)
+        interface.update(event.interface)
+
+    @on(ActiveDBusInterfaceMemberChanged)
+    def on_active_dbus_interface_member_changed(
+        self,
+        event: ActiveDBusInterfaceMemberChanged,
+    ) -> None:
+        name = self.get_widget_by_id("member", expect_type=Label)
+        name.update(event.name)
 
 
 def main():
