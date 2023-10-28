@@ -589,9 +589,12 @@ class DBuSPY(App):
                         id="details",
                     ),
                     Label("Annotations"),
-                    Markdown(
-                        "No annotation found.",
-                        id="annotations",
+                    Horizontal(
+                        Markdown(
+                            "No annotation found.",
+                            id="annotations",
+                        ),
+                        id="anno",
                     ),
                 ),
                 MethodPanel(),

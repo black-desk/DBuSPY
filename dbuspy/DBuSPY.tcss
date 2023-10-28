@@ -15,6 +15,10 @@ MethodPanel Label {
         overflow: hidden auto;
 }
 
+#anno {
+        min-width: 80;
+}
+
 #details{
         height: 5;
         grid-size: 2;
