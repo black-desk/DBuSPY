@@ -16,8 +16,9 @@ MethodPanel Label {
 }
 
 #details{
+        height: 5;
         grid-size: 2;
-        grid-columns: 11 3fr;
+        grid-columns: 12 3fr;
 }
 
 #call_layout {

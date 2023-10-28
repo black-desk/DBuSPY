@@ -1,10 +1,9 @@
 import logging
 import xml.etree.ElementTree as ET
-from typing import Container, Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.message import Message as DBusMessage
 from dbus_next.constants import BusType
-from dbus_next.introspection import Node
 from rich.console import RenderableType
 from textual import on, work, events
 from textual.binding import Binding
@@ -18,14 +17,12 @@ from textual.containers import (
     VerticalScroll,
 )
 from textual.message import Message
-from textual.scroll_view import ScrollView
 from textual.widget import Widget
 from textual.widgets import (
     ListItem,
     Markdown,
     Rule,
     Select,
-    Static,
     Tab,
     Tabs,
     Input,
@@ -76,7 +73,7 @@ class MainHorizontal(Horizontal):
             widget = widget.parent
 
         if widget.parent != self:
-            logging.error("WHAT THE FUCK?")
+            logging.error("WHAT THE FUCK??")
             return
 
         idx = 0
@@ -87,9 +84,9 @@ class MainHorizontal(Horizontal):
 
         idx = min(idx + 2, len(self.children))
 
-        widget = get_first_focusable(self.children[idx].children[1].children)
+        widget = get_first_focusable(self.children[idx].children)
         if widget is None:
-            logging.error("WHAT THE FUCK?")
+            logging.error("WHAT THE FUCK???")
             return
 
         widget.focus()
@@ -100,7 +97,7 @@ def get_first_focusable(widgets: Sequence[Widget]) -> Optional[Widget]:
         if widget.can_focus:
             return widget
         ret = get_first_focusable(widget.children)
-        if not ret is None:
+        if ret is not None:
             return ret
 
     return None
@@ -156,9 +153,10 @@ class ActiveDBusInterfaceChanged(Message):
 
 
 class ActiveDBusInterfaceMemberChanged(Message):
-    def __init__(self, name: RenderableType) -> None:
+    def __init__(self, name: RenderableType, xml: Optional[ET.Element]) -> None:
         super().__init__()
         self.name = name
+        self.xml = xml
 
 
 class BusTabs(Tabs):
@@ -233,6 +231,8 @@ class DBusNameList(ListView):
             return
 
         self.post_message(NextColumn(self))
+
+        return
 
 
 class DBusObjectTree(Tree):
@@ -417,7 +417,7 @@ class DBusInterfacesTree(Tree):
                     props_text = "{} [dim]{}[/dim]".format(
                         prop.attrib["name"], prop.attrib["type"]
                     )
-                    props_node.add_leaf(props_text)
+                    props_node.add_leaf(props_text, prop)
 
             methods = interface.findall("method")
             if len(methods):
@@ -440,7 +440,7 @@ class DBusInterfacesTree(Tree):
                             ]
                         ),
                     )
-                    methods_node.add_leaf(method_text)
+                    methods_node.add_leaf(method_text, method)
 
             signals = interface.findall("signal")
             if len(signals):
@@ -450,7 +450,7 @@ class DBusInterfacesTree(Tree):
                         signal.attrib["name"],
                         signature_of(signal.findall("arg")),
                     )
-                    signals_node.add_leaf(signal_text)
+                    signals_node.add_leaf(signal_text, signal)
 
     @on(events.Key)
     def on_key(self, event: events.Key):
@@ -468,7 +468,7 @@ class DBusInterfacesTree(Tree):
     def watch_cursor_line(self, previous_line: int, line: int) -> None:
         if previous_line is None:
             return
-        if line is None or line is 1:
+        if line is None or line == 1:
             return
         node = self.get_node_at_line(line)
         if node is None:
@@ -476,7 +476,14 @@ class DBusInterfacesTree(Tree):
         if node is self.root:
             return
 
-        self.post_message(ActiveDBusInterfaceMemberChanged(node.label))
+        if not node.allow_expand:
+            self.post_message(
+                ActiveDBusInterfaceMemberChanged(node.label, node.data)
+            )
+        else:
+            self.post_message(
+                ActiveDBusInterfaceMemberChanged("Unavailable", None)
+            )
 
         while node != None and node.parent != None and node.parent != self.root:
             node = node.parent
@@ -581,8 +588,13 @@ class DBuSPY(App):
                         Label("Unavailable", id="member"),
                         id="details",
                     ),
-                    MethodPanel(),
+                    Label("Annotations"),
+                    Markdown(
+                        "No annotation found.",
+                        id="annotations",
+                    ),
                 ),
+                MethodPanel(),
             )
 
     def on_mount(self):
@@ -648,6 +660,24 @@ class DBuSPY(App):
     ) -> None:
         name = self.get_widget_by_id("member", expect_type=Label)
         name.update(event.name)
+
+        annos = self.get_widget_by_id("annotations", expect_type=Markdown)
+        annos.update(gen_anno_from_xml(event.xml))
+
+
+def gen_anno_from_xml(xml: Optional[ET.Element]) -> str:
+    if xml is None:
+        return "No annotations found."
+
+    annos = xml.findall("annotation")
+    ret = ""
+    for anno in annos:
+        ret += "# {}\n{}\n\n".format(anno.attrib["name"], anno.attrib["value"])
+
+    if ret == "":
+        return "No annotations found."
+
+    return ret
 
 
 def main():
