@@ -16,7 +16,7 @@
 [badge-shields-io-release-date]: https://img.shields.io/github/release-date/black-desk/DBuSPY
 [badge-shields-io-commits-since-release]: https://img.shields.io/github/commits-since/black-desk/DBuSPY/latest/master
 
-`dbuspy` is a TUI program powered by [Textual][textual]
+`DBuSPY` is a TUI program powered by [Textual][textual]
 inspired by [D-Feet][d-feet],
 which can use to inspect D-Bus API.
 
