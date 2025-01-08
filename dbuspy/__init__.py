@@ -1,4 +1,1 @@
-from . import DBuSPY
-
-class app(DBuSPY.DBuSPY):
-    pass
+from .DBuSPY import DBuSPY

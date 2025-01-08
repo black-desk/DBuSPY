@@ -73,7 +73,7 @@ poetry run -- textual console
 Then in another shell:
 
 ```bash
-poetry run -- textual run --dev dbuspy
+poetry run -- textual run --dev dbuspy:DBuSPY
 ```
 
 ## Project naming
