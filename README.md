@@ -16,6 +16,9 @@
 [badge-shields-io-release-date]: https://img.shields.io/github/release-date/black-desk/DBuSPY
 [badge-shields-io-commits-since-release]: https://img.shields.io/github/commits-since/black-desk/DBuSPY/latest/master
 
+> [!WARNING]
+> This program is in very early stage and may break or change frequently\!
+
 `DBuSPY` is a TUI program powered by [Textual][textual]
 inspired by [D-Feet][d-feet],
 which can use to inspect D-Bus API.
@@ -26,6 +29,50 @@ which can use to inspect D-Bus API.
 ## Screenshot
 
 ![DBuSPY Screenshot](./assets/screenshot.svg)
+
+## Install
+
+### pipx
+
+```bash
+pipx install git+https://github.com/black-desk/DBuSPY
+```
+
+### pip
+
+```bash
+pip install git+https://github.com/black-desk/DBuSPY
+```
+
+## Development
+
+This project use poetry.
+
+### Install development dependencies
+
+```bash
+poetry install --with=dev
+```
+
+### Run application
+
+```bash
+poetry run -- dbuspy
+```
+
+### Run application with Textual development tools
+
+First run:
+
+```bash
+poetry run -- textual console
+```
+
+Then in another shell:
+
+```bash
+poetry run -- textual run --dev dbuspy
+```
 
 ## Project naming
 
