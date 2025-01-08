@@ -1,6 +1,18 @@
 import dbus_next
 import os
 
+def sort_dbus_services(services: list[str]) -> None:
+    def dbus_service_sort_key(name: str):
+        components = name.split(":")
+        if components[0] == "":
+            return (
+                True,
+                [int(x) for x in str.join("", components[1:]).split(".")],
+                "",
+            )
+        return False, [], components
+
+    list.sort(services, key=dbus_service_sort_key)
 
 async def list_dbus_services(
     bus: dbus_next.aio.message_bus.MessageBus,
@@ -15,17 +27,8 @@ async def list_dbus_services(
         .call_list_names()
     )
 
-    def dbus_service_sort_key(name: str):
-        components = name.split(":")
-        if components[0] == "":
-            return (
-                True,
-                [int(x) for x in str.join("", components[1:]).split(".")],
-                "",
-            )
-        return False, [], components
+    sort_dbus_services(services)
 
-    list.sort(services, key=dbus_service_sort_key)
     return services
 
 async def list_dbus_object_children(
