@@ -48,7 +48,7 @@ pip install git+https://github.com/black-desk/DBuSPY
 
 ## Development
 
-This project use poetry.
+This project use [poetry](https://python-poetry.org/).
 
 ### Install development dependencies
 
@@ -62,7 +62,11 @@ poetry install --with=dev
 poetry run -- dbuspy
 ```
 
-### Run application with Textual development tools
+### Log
+
+Run application with [Textual development tools][textual-devtools] to check log.
+
+[textual-devtools]: https://textual.textualize.io/guide/devtools/
 
 First run:
 
