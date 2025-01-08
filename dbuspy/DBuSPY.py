@@ -327,6 +327,15 @@ class Objects(textual.containers.Container):
         )
 
 class Interfaces(textual.containers.Container):
+    DEFAULT_CSS = """
+    Interfaces > ScrollableContainer Collapsible {
+        border: none;
+        padding-bottom: 0;
+    }
+    Interfaces > ScrollableContainer Collapsible > Contents {
+        padding: 0 0 0 3;
+    }
+    """
 
     interfaces = textual.reactive.reactive[
         Optional[list[dbus_next.introspection.Interface]]
@@ -345,9 +354,15 @@ class Interfaces(textual.containers.Container):
 
         with textual.containers.ScrollableContainer():
             for interface in self.interfaces:
-                with textual.widgets.Collapsible(title=interface.name):
+                with textual.widgets.Collapsible(
+                    title=interface.name,
+                    collapsed=False,
+                ):
                     if interface.properties:
-                        with textual.widgets.Collapsible(title="Properties"):
+                        with textual.widgets.Collapsible(
+                            title="Properties",
+                            collapsed=False,
+                        ):
                             table = textual.widgets.DataTable(
                                 show_header=False,
                                 cursor_type="row",
@@ -361,12 +376,15 @@ class Interfaces(textual.containers.Container):
                                 )
 
                     if interface.methods:
-                        with textual.widgets.Collapsible(title="Methods"):
+                        with textual.widgets.Collapsible(
+                            title="Methods",
+                            collapsed=False,
+                        ):
                             table = textual.widgets.DataTable(
                                 cursor_type="row",
                             )
                             yield table
-                            table.add_columns("Name", "Signature (in)", "Signature (out)")
+                            table.add_columns("Name", "in", "out")
                             for method in interface.methods:
                                 table.add_row(
                                     method.name,
@@ -375,7 +393,10 @@ class Interfaces(textual.containers.Container):
                                 )
 
                     if interface.signals:
-                        with textual.widgets.Collapsible(title="Signals"):
+                        with textual.widgets.Collapsible(
+                            title="Signals",
+                            collapsed=False,
+                        ):
                             table = textual.widgets.DataTable(
                                 show_header=False,
                                 cursor_type="row",
