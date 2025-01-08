@@ -86,3 +86,39 @@ poetry run -- textual run --dev dbuspy:DBuSPY
 
 [d-bus]: https://www.freedesktop.org/wiki/Software/dbus/
 [python]: https://www.python.org/
+
+## Road map
+
+- [x] Select D-Bus services
+- [x] Select D-Bus object
+- [x] Select D-Bus interfaces
+- [x] List members under D-Bus interface
+  - [x] Properties
+  - [x] Methods
+  - [x] Signals
+- [ ] Perform D-Bus methods call
+  - [ ] Copy D-Bus methods call as
+    - [ ] `dbus-send` command
+    - [ ] `gdbus` command
+    - [ ] `busctl` command
+    - [ ] `qdbus` command
+- [ ] Read D-Bus properties
+  - [ ] Copy D-Bus property read method call as
+    - [ ] `dbus-send` command
+    - [ ] `gdbus` command
+    - [ ] `busctl` command
+    - [ ] `qdbus` command
+- [ ] Write D-Bus properties
+  - [ ] Copy D-Bus property write method call as
+    - [ ] `dbus-send` command
+    - [ ] `gdbus` command
+    - [ ] `busctl` command
+    - [ ] `qdbus` command
+- [ ] Monitor D-Bus signals
+- [ ] Monitor D-Bus properties change signal
+- [ ] Monitor D-Bus method call
+  - [ ] Copy captured D-Bus method call as
+    - [ ] `dbus-send` command
+    - [ ] `gdbus` command
+    - [ ] `busctl` command
+    - [ ] `qdbus` command
