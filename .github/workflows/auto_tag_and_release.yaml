@@ -26,7 +26,10 @@ jobs:
       - name: Run poetry version --no-plugins
         id: get_project_version
         run: |
-          echo version="$(poetry version --no-plugins)" >> $GITHUB_OUTPUT
+          echo version="$(
+            poetry version --no-plugins |
+              awk '{print($2)}'
+          )" >> $GITHUB_OUTPUT
 
       - name: Check if tag already exists
         id: check_tag
