@@ -44,7 +44,7 @@ jobs:
       - name: Build & test
         run: |
           poetry install --with=dev
-          poetry run pytest --cov
+          poetry run pytest --cov --cov-branch --cov-report=xml
 
       - name: Upload results to Codecov
         uses: codecov/codecov-action@v5
