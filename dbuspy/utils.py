@@ -2,6 +2,7 @@ import dbus_next
 import os
 import typing
 
+
 def sort_dbus_services(services: list[str]) -> None:
     def dbus_service_sort_key(name: str):
         components = name.split(":")
@@ -15,19 +16,22 @@ def sort_dbus_services(services: list[str]) -> None:
 
     list.sort(services, key=dbus_service_sort_key)
 
+async def get_bus_proxy_object(
+    bus: dbus_next.aio.message_bus.MessageBus,
+) -> dbus_next.aio.proxy_object.ProxyInterface:
+
+    return bus.get_proxy_object(
+        "org.freedesktop.DBus",
+        "/org/freedesktop/DBus",
+        await bus.introspect(bus_name="org.freedesktop.DBus", path="/org/freedesktop/DBus"),
+    ).get_interface("org.freedesktop.DBus")
+
 async def list_dbus_services(
     bus: dbus_next.aio.message_bus.MessageBus,
 ) -> list[str]:
-    services = (
-        await bus.get_proxy_object(
-            "org.freedesktop.DBus",
-            "/",
-            await bus.introspect(bus_name="org.freedesktop.DBus", path="/"),
-        )
-        .get_interface("org.freedesktop.DBus")
-        .call_list_names()
-    )
 
+    bus_proxy = await get_bus_proxy_object(bus) 
+    services = await bus_proxy.call_list_names()
     sort_dbus_services(services)
 
     return services
@@ -35,23 +39,15 @@ async def list_dbus_services(
 async def list_dbus_object_children(
     bus: dbus_next.aio.message_bus.MessageBus, service: str, path: str
 ) :
-    children = await bus.introspect(bus_name=service, path=path),
 
-    return children
+    return await bus.introspect(bus_name=service, path=path),
 
 async def get_dbus_service_pid(
     bus: dbus_next.aio.message_bus.MessageBus,
     service: str
 ) -> int:
-    return (
-        await bus.get_proxy_object(
-            "org.freedesktop.DBus",
-            "/",
-            await bus.introspect(bus_name="org.freedesktop.DBus", path="/"),
-        )
-        .get_interface("org.freedesktop.DBus")
-        .call_get_connection_unix_process_id(service)
-    )
+    bus_proxy = await get_bus_proxy_object(bus)
+    return await bus_proxy.call_get_connection_unix_process_id(service)
 
 async def get_executable(
     pid: int
@@ -68,29 +64,15 @@ async def get_dbus_service_uid(
     bus: dbus_next.aio.message_bus.MessageBus,
     service: str
 ) -> int:
-    return (
-        await bus.get_proxy_object(
-            "org.freedesktop.DBus",
-            "/",
-            await bus.introspect(bus_name="org.freedesktop.DBus", path="/"),
-        )
-        .get_interface("org.freedesktop.DBus")
-        .call_get_connection_unix_user(service)
-    )
+    bus_proxy = await get_bus_proxy_object(bus)
+    return await bus_proxy.call_get_connection_unix_user(service)
 
 async def get_dbus_service_unique_name(
     bus: dbus_next.aio.message_bus.MessageBus,
     service: str
 ) -> str:
-    return (
-        await bus.get_proxy_object(
-            "org.freedesktop.DBus",
-            "/",
-            await bus.introspect(bus_name="org.freedesktop.DBus", path="/"),
-        )
-        .get_interface("org.freedesktop.DBus")
-        .call_get_name_owner(service)
-    )
+    bus_proxy = await get_bus_proxy_object(bus)
+    return await bus_proxy.call_get_name_owner(service)
 
 async def get_user_name(uid: int) -> typing.Optional[str]:
     with open("/etc/passwd") as f:
