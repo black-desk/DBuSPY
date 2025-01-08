@@ -8,3 +8,7 @@ updates:
       schedule:
         interval: "daily"
       directory: /
+    - package-ecosystem: pip
+      schedule:
+        interval: "daily"
+      directory: /
