@@ -273,6 +273,14 @@ class BusPane(textual.containers.Container):
             self.mutate_reactive(BusPane.interfaces)
             return
 
+
+        def dbus_interface_sort_key(
+            interface: dbus_next.introspection.Interface
+        ) -> str:
+            return interface.name
+
+        list.sort(introspection.interfaces, key=dbus_interface_sort_key)
+
         self.set_reactive(BusPane.interfaces, introspection.interfaces)
         self.mutate_reactive(BusPane.interfaces)
 
