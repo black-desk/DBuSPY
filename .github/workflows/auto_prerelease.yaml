@@ -1,0 +1,39 @@
+name: Automatic pre-release
+
+on:
+  push:
+    tags: ["v*-*"]
+
+jobs:
+  auto_pre_release:
+    name: Automatic pre-release
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up python
+        id: setup-python
+        uses: actions/setup-python@v5
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Run poetry build
+        run: |
+          poetry build
+          ASSETS="$(find dist)"
+          echo assets="$ASSETS" >> $GITHUB_OUTPUT
+
+      - name: Run marvinpinto/action-automatic-releases
+        uses: marvinpinto/action-automatic-releases@latest
+        if: needs.auto_tag.outputs.new_tag
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: ${{ needs.auto_tag.outputs.new_tag }}
+          prerelease: true
+          files: ${{ steps.generate_release_assets.outputs.assets }}

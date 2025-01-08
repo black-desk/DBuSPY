@@ -1,0 +1,84 @@
+name: Automatic create tag and release.
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  auto_tag:
+    name: Automatic create new tag from tools/get_project_version.sh
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up python
+        id: setup-python
+        uses: actions/setup-python@v5
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Run poetry version --no-plugins
+        id: get_project_version
+        run: |
+          echo version="$(poetry version --no-plugins)" >> $GITHUB_OUTPUT
+
+      - name: Check if tag already exists
+        id: check_tag
+        run: |
+          if git rev-parse "${{ steps.get_project_version.outputs.version }}" &>/dev/null; then
+            echo existed=true >> $GITHUB_OUTPUT
+          else
+            echo existed=false >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run autotag
+        id: autotag
+        if: steps.check_tag.outputs.existed == 'false'
+        uses: anothrNick/github-tag-action@1.71.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
+          CUSTOM_TAG: ${{ steps.get_project_version.outputs.version }}
+    outputs:
+      new_tag: ${{ steps.autotag.outputs.new_tag }}
+
+  auto_release:
+    name: Automatic release for new tag
+    needs:
+      - auto_tag
+    if: needs.auto_tag.outputs.new_tag
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up python
+        id: setup-python
+        uses: actions/setup-python@v5
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+
+      - name: Run poetry build
+        run: |
+          poetry build
+          ASSETS="$(find dist)"
+          echo assets="$ASSETS" >> $GITHUB_OUTPUT
+
+      - name: Run marvinpinto/action-automatic-releases
+        uses: marvinpinto/action-automatic-releases@latest
+        if: needs.auto_tag.outputs.new_tag
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: ${{ needs.auto_tag.outputs.new_tag }}
+          prerelease: false
+          files: ${{ steps.generate_release_assets.outputs.assets }}
