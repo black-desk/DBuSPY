@@ -1,10 +1,7 @@
-from .DBuSPY import DBuSPY
-
+from . import app
 
 def main():
-    app = DBuSPY()
-    app.run()
-
+    app().run()
 
 if __name__ == "__main__":
     main()
