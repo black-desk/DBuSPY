@@ -1,5 +1,3 @@
-from typing import Optional
-
 from . import utils
 import dbus_next
 import os
@@ -12,6 +10,7 @@ import textual.css.query
 import textual.message
 import textual.reactive
 import textual.widgets
+import typing
 
 
 class DBuSPY(textual.app.App):
@@ -29,7 +28,7 @@ class DBuSPY(textual.app.App):
 
 class MainPage(textual.containers.Container):
     message_buses = textual.reactive.reactive[
-        Optional[dict[str, dbus_next.aio.message_bus.MessageBus]]
+        typing.Optional[dict[str, dbus_next.aio.message_bus.MessageBus]]
     ](None)
 
     def on_mount(self):
@@ -129,20 +128,20 @@ class BusPane(textual.containers.Container):
         textual.binding.Binding("r", "reload", "Reload"),
     ]
 
-    services = textual.reactive.reactive[Optional[list[str]]](None)
-    objects_tree = textual.reactive.reactive[Optional[ObjectsTree]](None)
-    service = textual.reactive.reactive[Optional[str]](None)
+    services = textual.reactive.reactive[typing.Optional[list[str]]](None)
+    objects_tree = textual.reactive.reactive[typing.Optional[ObjectsTree]](None)
+    service = textual.reactive.reactive[typing.Optional[str]](None)
 
-    pid = textual.reactive.reactive[Optional[int]](None)
-    executable = textual.reactive.reactive[Optional[str]](None)
-    command_line = textual.reactive.reactive[Optional[list[str]]](None)
-    uid = textual.reactive.reactive[Optional[int]](None)
-    user_name = textual.reactive.reactive[Optional[str]](None)
-    unique_name = textual.reactive.reactive[Optional[str]](None)
+    pid = textual.reactive.reactive[typing.Optional[int]](None)
+    executable = textual.reactive.reactive[typing.Optional[str]](None)
+    command_line = textual.reactive.reactive[typing.Optional[list[str]]](None)
+    uid = textual.reactive.reactive[typing.Optional[int]](None)
+    user_name = textual.reactive.reactive[typing.Optional[str]](None)
+    unique_name = textual.reactive.reactive[typing.Optional[str]](None)
 
-    object_path = textual.reactive.reactive[Optional[str]](None)
+    object_path = textual.reactive.reactive[typing.Optional[str]](None)
     interfaces = textual.reactive.reactive[
-        Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_next.introspection.Interface]]
     ](None)
 
     def __init__(self, bus: dbus_next.aio.message_bus.MessageBus):
@@ -279,7 +278,7 @@ class BusPane(textual.containers.Container):
 
 
 class ServiceNamesTable(textual.containers.Container):
-    services = textual.reactive.reactive[Optional[list[str]]](None)
+    services = textual.reactive.reactive[typing.Optional[list[str]]](None)
 
     def on_mount(self):
         self.loading = True
@@ -304,7 +303,7 @@ class ServiceNamesTable(textual.containers.Container):
 
 
 class Objects(textual.containers.Container):
-    objects_tree = textual.reactive.reactive[Optional[ObjectsTree]](None)
+    objects_tree = textual.reactive.reactive[typing.Optional[ObjectsTree]](None)
 
     @textual.work()
     async def watch_objects_tree(self):
@@ -338,7 +337,7 @@ class Interfaces(textual.containers.Container):
     """
 
     interfaces = textual.reactive.reactive[
-        Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_next.introspection.Interface]]
     ](None, recompose=True)
 
     def compose(self) -> textual.app.ComposeResult:
@@ -412,18 +411,18 @@ class Interfaces(textual.containers.Container):
 
 class ServiceDetails(textual.containers.Container):
     bus = textual.reactive.reactive[
-        Optional[dbus_next.aio.message_bus.MessageBus]
+        typing.Optional[dbus_next.aio.message_bus.MessageBus]
     ](None)
-    service = textual.reactive.reactive[Optional[str]](None)
-    pid = textual.reactive.reactive[Optional[int]](None)
-    executable = textual.reactive.reactive[Optional[str]](None)
-    command_line = textual.reactive.reactive[Optional[list[str]]](None)
-    uid = textual.reactive.reactive[Optional[int]](None)
-    user_name = textual.reactive.reactive[Optional[str]](None)
-    unique_name = textual.reactive.reactive[Optional[str]](None)
-    object_path = textual.reactive.reactive[Optional[str]](None)
+    service = textual.reactive.reactive[typing.Optional[str]](None)
+    pid = textual.reactive.reactive[typing.Optional[int]](None)
+    executable = textual.reactive.reactive[typing.Optional[str]](None)
+    command_line = textual.reactive.reactive[typing.Optional[list[str]]](None)
+    uid = textual.reactive.reactive[typing.Optional[int]](None)
+    user_name = textual.reactive.reactive[typing.Optional[str]](None)
+    unique_name = textual.reactive.reactive[typing.Optional[str]](None)
+    object_path = textual.reactive.reactive[typing.Optional[str]](None)
     interfaces = textual.reactive.reactive[
-        Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_next.introspection.Interface]]
     ](None)
 
     def compose(self) -> textual.app.ComposeResult:
