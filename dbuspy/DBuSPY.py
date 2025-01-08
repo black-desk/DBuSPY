@@ -100,6 +100,9 @@ class ObjectsTree(textual.widgets.Tree):
         event: textual.widgets.Tree.NodeExpanded,
     ):
         if event.node.children:
+            if len(event.node.children) != 1:
+                return
+            event.node.children[0].expand()
             return
 
         introspection = event.node.data
