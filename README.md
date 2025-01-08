@@ -23,10 +23,11 @@
 
 `DBuSPY` is a TUI program powered by [Textual][textual]
 inspired by [D-Feet][d-feet],
-which can use to inspect D-Bus API.
+which can use to inspect [D-Bus][d-bus] API.
 
 [textual]: https://textual.textualize.io/
 [d-feet]: https://wiki.gnome.org/Apps(2f)DFeet.html
+[d-bus]: https://www.freedesktop.org/wiki/Software/dbus/
 
 ## Screenshot
 
@@ -84,7 +85,6 @@ poetry run -- textual run --dev dbuspy:DBuSPY
 
 [D-Bus][d-bus] + spy + [py(thon)][python]
 
-[d-bus]: https://www.freedesktop.org/wiki/Software/dbus/
 [python]: https://www.python.org/
 
 ## Road map
