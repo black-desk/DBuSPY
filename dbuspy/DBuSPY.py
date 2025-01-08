@@ -361,9 +361,17 @@ class Interfaces(textual.containers.Container):
 
         with textual.containers.ScrollableContainer():
             for interface in self.interfaces:
+                collapsed = False
+                if interface.name in [
+                    "org.freedesktop.DBus.Introspectable",
+                    "org.freedesktop.DBus.Peer",
+                    "org.freedesktop.DBus.Properties",
+                ]:
+                    collapsed = True
+
                 with textual.widgets.Collapsible(
                     title=interface.name,
-                    collapsed=False,
+                    collapsed=collapsed,
                 ):
                     if interface.properties:
                         with textual.widgets.Collapsible(
