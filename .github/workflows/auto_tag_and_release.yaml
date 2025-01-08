@@ -76,7 +76,12 @@ jobs:
         run: |
           poetry build
           ASSETS="$(find dist)"
-          echo assets="$ASSETS" >> $GITHUB_OUTPUT
+
+          # https://github.com/github/docs/issues/21529
+          echo 'assets<<EOF' >> $GITHUB_OUTPUT
+          echo "$ASSETS" >> $GITHUB_OUTPUT
+          echo EOF >> $GITHUB_OUTPUT
+
 
       - name: Run marvinpinto/action-automatic-releases
         uses: marvinpinto/action-automatic-releases@latest
