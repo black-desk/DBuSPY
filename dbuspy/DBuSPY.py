@@ -1,9 +1,10 @@
 from typing import Optional
 
 from . import utils
-import os
-import shlex
 import dbus_next
+import os
+import rich.text
+import shlex
 import textual.app
 import textual.binding
 import textual.containers
@@ -86,6 +87,7 @@ class ObjectsTree(textual.widgets.Tree):
 
         self.bus = bus
         self.service = service
+        self.guide_depth = 2
 
         if not len(introspection.nodes):
             self.root.allow_expand = False
@@ -296,7 +298,7 @@ class ServiceNamesTable(textual.containers.Container):
         self.loading = False
 
     def compose(self) -> textual.app.ComposeResult:
-        yield textual.widgets.Label("Services")
+        yield textual.widgets.Label(rich.text.Text("Services", style="bold"))
         with textual.containers.VerticalScroll():
             yield textual.widgets.DataTable(show_header=False)
 
@@ -319,7 +321,7 @@ class Objects(textual.containers.Container):
         self.loading = False
 
     def compose(self) -> textual.app.ComposeResult:
-        yield textual.widgets.Label("Objects")
+        yield textual.widgets.Label(rich.text.Text("Objects", style="bold"))
         yield textual.containers.VerticalScroll(
             textual.widgets.LoadingIndicator()
         )
@@ -331,11 +333,15 @@ class Interfaces(textual.containers.Container):
     ](None, recompose=True)
 
     def compose(self) -> textual.app.ComposeResult:
-        if self.interfaces == None or len(self.interfaces) == 0:
-            yield textual.widgets.LoadingIndicator()
+        yield textual.widgets.Label(rich.text.Text("Interfaces", style="bold"))
+
+        if self.interfaces == None:
+            yield textual.widgets.Label("No object selected")
             return
 
-        yield textual.widgets.Label("Interfaces")
+        if len(self.interfaces) == 0:
+            yield textual.widgets.Label("No interfaces avaiable in this object")
+            return
 
         with textual.containers.ScrollableContainer():
             for interface in self.interfaces:
@@ -401,7 +407,7 @@ class ServiceDetails(textual.containers.Container):
 
     def compose(self) -> textual.app.ComposeResult:
         with textual.containers.VerticalScroll():
-            yield textual.widgets.Label("Details")
+            yield textual.widgets.Label(rich.text.Text("Details", style="bold"))
             table = textual.widgets.DataTable(
                 show_header=False,
                 cursor_type="row",
