@@ -39,7 +39,10 @@ dbuspy = "dbuspy.__main__:main"
 DBuSPY = "dbuspy.__main__:main"
 
 [tool.poetry]
-version = "0.1.2"
+# NOTE:
+# Update this version to start a auto tag and release github workflow.
+# Check ./.github/workflows/auto_tag_and_release.yaml for details.
+version = "0.1.3"
 
 [tool.poetry.group.dev]
 optional = true
