@@ -1,5 +1,6 @@
 import dbus_next
 import os
+import typing
 
 def sort_dbus_services(services: list[str]) -> None:
     def dbus_service_sort_key(name: str):
@@ -54,12 +55,12 @@ async def get_dbus_service_pid(
 
 async def get_executable(
     pid: int
-) -> str | None:
+) -> typing.Optional[str]:
     return os.readlink(f"/proc/{pid}/exe")
 
 async def get_command_line(
     pid: int
-) -> list[str] | None:
+) -> typing.Optional[list[str]]:
     with open(f"/proc/{pid}/cmdline") as f:
         return f.read().split("\0")[:-1]
 
@@ -91,7 +92,7 @@ async def get_dbus_service_unique_name(
         .call_get_name_owner(service)
     )
 
-async def get_user_name(uid: int) -> str | None:
+async def get_user_name(uid: int) -> typing.Optional[str]:
     with open("/etc/passwd") as f:
         for line in f:
             parts = line.split(":")
