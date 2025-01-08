@@ -2,6 +2,7 @@
 
 - ![license][badge-shields-io-license]
 - ![checks][badge-shields-io-checks]
+  [![codecov][badge-shields-io-codecov]][codecov]
 - ![commit activity][badge-shields-io-commit-activity]
   ![contributors][badge-shields-io-contributors]
   ![release date][badge-shields-io-release-date]
@@ -10,6 +11,7 @@
 [badge-shields-io-license]: https://img.shields.io/github/license/black-desk/DBuSPY
 [badge-shields-io-checks]: https://img.shields.io/github/check-runs/black-desk/DBuSPY/master
 [badge-go-report-card]: https://goreportcard.com/badge/github.com/black-desk/DBuSPY
+[badge-shields-io-codecov]: https://codecov.io/github/black-desk/DBuSPY/graph/badge.svg?token=6TSVGQ4L9X
 [codecov]: https://codecov.io/github/black-desk/DBuSPY
 [badge-shields-io-commit-activity]: https://img.shields.io/github/commit-activity/w/black-desk/DBuSPY/master
 [badge-shields-io-contributors]: https://img.shields.io/github/contributors/black-desk/DBuSPY
