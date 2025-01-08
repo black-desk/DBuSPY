@@ -90,6 +90,9 @@ class ObjectsTree(textual.widgets.Tree):
 
         if not len(introspection.nodes):
             self.root.allow_expand = False
+            return
+
+        self.root.expand()
 
     @textual.work()
     async def on_tree_node_expanded(
@@ -102,11 +105,13 @@ class ObjectsTree(textual.widgets.Tree):
         introspection = event.node.data
         assert isinstance(introspection, dbus_next.introspection.Node)
 
+        child_node = None
+
         for child in introspection.nodes:
             assert isinstance(child, dbus_next.introspection.Node)
             path = utils.get_textual_tree_node_path(event.node) + child.name
 
-            introspection = await self.bus.introspect(
+            child_introspection = await self.bus.introspect(
                 self.service,
                 path,
             )
@@ -114,14 +119,22 @@ class ObjectsTree(textual.widgets.Tree):
             self.log.debug(
                 "Introspect D-Bus service", self.service,
                 "at object path", path,
-                "result:", introspection.tostring(),
+                "result:", child_introspection.tostring(),
             )
 
-            event.node.add(
+            child_node = event.node.add(
                 child.name,
-                introspection,
-                allow_expand=len(introspection.nodes)>0,
+                child_introspection,
+                allow_expand=len(child_introspection.nodes)>0,
             )
+
+        if len(introspection.nodes)!=1:
+            return;
+
+        assert child_node is not None
+
+        child_node.expand()
+
 
 class BusPane(textual.containers.Container):
     BINDINGS = [
