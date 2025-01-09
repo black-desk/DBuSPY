@@ -107,6 +107,7 @@ class ObjectsTree(textual.widgets.Tree):
 
         introspection = event.node.data
         assert isinstance(introspection, dbus_next.introspection.Node)
+        list.sort(introspection.nodes,key=lambda node: node.name)
 
         child_node = None
 
