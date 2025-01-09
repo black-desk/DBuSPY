@@ -392,6 +392,23 @@ class Interfaces(textual.containers.Container):
                     title=interface.name,
                     collapsed=collapsed,
                 ):
+                    if interface.annotations:
+                        with textual.widgets.Collapsible(
+                            title="Annotations",
+                            collapsed=False,
+                        ):
+                            table = textual.widgets.DataTable(
+                                show_header=False,
+                                cursor_type="row",
+                            )
+                            yield table
+                            table.add_columns("Name", "Value")
+                            for key, value in interface.annotations.items():
+                                table.add_row(
+                                    key,
+                                    value,
+                                )
+
                     if interface.properties:
                         with textual.widgets.Collapsible(
                             title="Properties",
