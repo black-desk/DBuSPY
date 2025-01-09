@@ -16,7 +16,10 @@ classifiers = [
 ]
 keywords = ["D-Bus", "dbus", "Textual"]
 requires-python = ">=3.9.0, <4.0.0"
-dependencies = ["textual >=1.0.0, ==1.*", "dbus-next >=0.2.3, ==0.2.*"]
+dependencies = [
+        "textual >=1.0.0, ==1.*",
+        "dbus-next @ git+https://github.com/black-desk/python-dbus-next.git@DBuSPY",
+]
 
 [project.optional-dependencies]
 dev = [

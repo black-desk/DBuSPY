@@ -282,16 +282,20 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
-name = "dbus-next"
+name = "dbus_next"
 version = "0.2.3"
 description = "A zero-dependency DBus library for Python with asyncio support"
 optional = false
 python-versions = ">=3.6.0"
 groups = ["main"]
-files = [
-    {file = "dbus_next-0.2.3-py3-none-any.whl", hash = "sha256:58948f9aff9db08316734c0be2a120f6dc502124d9642f55e90ac82ffb16a18b"},
-    {file = "dbus_next-0.2.3.tar.gz", hash = "sha256:f4eae26909332ada528c0a3549dda8d4f088f9b365153952a408e28023a626a5"},
-]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/black-desk/python-dbus-next.git"
+reference = "DBuSPY"
+resolved_reference = "c3be75541aeee4e727096d3b242f6285c673a8bb"
 
 [[package]]
 name = "exceptiongroup"
@@ -1233,4 +1237,4 @@ dev = ["pytest", "pytest-cov", "textual-dev"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.0, <4.0.0"
-content-hash = "6aef288d992fb200c209b52b74b72310a393fe49290db93b80c7bf5b3b596093"
+content-hash = "c8d3944961be5463270ce044fbaf3ab03e5fc7a9d4b38ec505173ae36a57fdf3"
