@@ -19,7 +19,6 @@ def sort_dbus_services(services: list[str]) -> None:
 async def get_bus_proxy_object(
     bus: dbus_next.aio.message_bus.MessageBus,
 ) -> dbus_next.aio.proxy_object.ProxyInterface:
-
     return bus.get_proxy_object(
         "org.freedesktop.DBus",
         "/org/freedesktop/DBus",
