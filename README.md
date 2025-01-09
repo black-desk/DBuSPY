@@ -113,6 +113,16 @@ a powerful TUI D-Bus debugger is needed.
 [python]: https://www.python.org/
 [d-spy]: https://gitlab.gnome.org/GNOME/d-spy/
 
+## Logo
+
+![DBuSPY logo](./assets/DBuSPY.svg)
+
+This logo is a modified "only 'two snakes'" version [Python logo][python-logo],
+with hats copied from [d-spy logo][d-spy-logo].
+
+[python-logo]: https://www.python.org/community/logos/
+[d-spy-logo]: https://gitlab.gnome.org/GNOME/d-spy/-/blob/f9aad10db09b57928f6bcfc09d6cfa06e5b64772/data/org.gnome.dspy.Source.svg
+
 ## Road map
 
 - [x] Select D-Bus services
