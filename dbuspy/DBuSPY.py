@@ -107,7 +107,7 @@ class ObjectsTree(textual.widgets.Tree):
 
         introspection = event.node.data
         assert isinstance(introspection, dbus_next.introspection.Node)
-        list.sort(introspection.nodes,key=lambda node: node.name)
+        list.sort(introspection.nodes, key=lambda node: node.name)
 
         child_node = None
 
@@ -115,10 +115,25 @@ class ObjectsTree(textual.widgets.Tree):
             assert isinstance(child, dbus_next.introspection.Node)
             path = utils.get_textual_tree_node_path(event.node) + child.name
 
-            child_introspection = await self.bus.introspect(
-                self.service,
-                path,
-            )
+            child_introspection = None
+
+            try:
+                child_introspection = await self.bus.introspect(
+                    self.service,
+                    path,
+                )
+            except Exception as e:
+                self.log.info(
+                    "introspect",
+                    path,
+                    "of",
+                    self.service,
+                    "failed, maybe object has been removed:",
+                    e,
+                )
+
+            if child_introspection == None:
+                continue
 
             self.log.debug(
                 "Introspect D-Bus service",
