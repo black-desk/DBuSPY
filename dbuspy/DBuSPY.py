@@ -157,12 +157,13 @@ class ObjectsTree(textual.widgets.Tree):
 
         child_node.expand()
 
+class UpdateServices(textual.message.Message):
+    pass
+
+class UpdateObjectsTree(textual.message.Message):
+    pass
 
 class BusPane(textual.containers.Container):
-    BINDINGS = [
-        textual.binding.Binding("r", "reload", "Reload"),
-    ]
-
     services = textual.reactive.reactive[typing.Optional[list[str]]](None)
     objects_tree = textual.reactive.reactive[typing.Optional[ObjectsTree]](None)
     service = textual.reactive.reactive[typing.Optional[str]](None)
@@ -187,10 +188,8 @@ class BusPane(textual.containers.Container):
         self.loading = True
         self.update_services()
 
-    def action_reload(self):
-        self.update_services()
-
     @textual.work()
+    @textual.on(UpdateServices)
     async def update_services(self):
         self.set_reactive(
             BusPane.services,
@@ -254,10 +253,11 @@ class BusPane(textual.containers.Container):
             self.bus, self.service
         )
 
-        self.initialize_objects_tree()
+        self.update_objects_tree()
 
     @textual.work()
-    async def initialize_objects_tree(self):
+    @textual.on(UpdateObjectsTree)
+    async def update_objects_tree(self):
         assert self.service
 
         introspection = None
@@ -322,6 +322,10 @@ class BusPane(textual.containers.Container):
 
 
 class ServiceNamesTable(textual.containers.Container):
+    BINDINGS = [
+        textual.binding.Binding("r", "reload_service", "Reload services"),
+    ]
+
     services = textual.reactive.reactive[typing.Optional[list[str]]](None)
 
     def on_mount(self):
@@ -344,9 +348,16 @@ class ServiceNamesTable(textual.containers.Container):
         yield textual.widgets.Label(rich.text.Text("Services", style="bold"))
         with textual.containers.VerticalScroll():
             yield textual.widgets.DataTable(show_header=False)
+    
+    def action_reload_services(self):
+        self.post_message(UpdateServices())
 
 
 class Objects(textual.containers.Container):
+    BINDINGS = [
+        textual.binding.Binding("r", "reload_objects", "Reload objects"),
+    ]
+
     objects_tree = textual.reactive.reactive[typing.Optional[ObjectsTree]](None)
 
     @textual.work()
@@ -366,6 +377,10 @@ class Objects(textual.containers.Container):
     def compose(self) -> textual.app.ComposeResult:
         yield textual.widgets.Label(rich.text.Text("Objects", style="bold"))
         yield textual.containers.VerticalScroll()
+
+    def action_reload_objects(self):
+        self.post_message(UpdateObjectsTree())
+
 
 
 class Interfaces(textual.containers.Container):
