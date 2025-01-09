@@ -245,14 +245,16 @@ class BusPane(textual.containers.Container):
         assert self.service
 
         introspection = None
+
         try:
             introspection = await self.bus.introspect(self.service, "/")
         except Exception as e:
             self.log.error(e)
-        if introspection == None:
-            return
 
-        tree = ObjectsTree(self.bus, self.service, introspection)
+        tree = None
+
+        if introspection != None:
+            tree = ObjectsTree(self.bus, self.service, introspection)
 
         self.object_path = None
 
@@ -333,23 +335,21 @@ class Objects(textual.containers.Container):
 
     @textual.work()
     async def watch_objects_tree(self):
-        if self.objects_tree == None:
-            return
+        widget = textual.widgets.LoadingIndicator()
 
-        self.log.info("Initialize objects tree")
+        if self.objects_tree != None:
+            widget = self.objects_tree
 
         container = self.query_one(textual.containers.VerticalScroll)
 
         await container.remove_children()
-        await container.mount(self.objects_tree)
+        await container.mount(widget)
 
         self.loading = False
 
     def compose(self) -> textual.app.ComposeResult:
         yield textual.widgets.Label(rich.text.Text("Objects", style="bold"))
-        yield textual.containers.VerticalScroll(
-            textual.widgets.LoadingIndicator()
-        )
+        yield textual.containers.VerticalScroll()
 
 
 class Interfaces(textual.containers.Container):
