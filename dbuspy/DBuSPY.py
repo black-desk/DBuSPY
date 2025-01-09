@@ -120,19 +120,22 @@ class ObjectsTree(textual.widgets.Tree):
             )
 
             self.log.debug(
-                "Introspect D-Bus service", self.service,
-                "at object path", path,
-                "result:", child_introspection.tostring(),
+                "Introspect D-Bus service",
+                self.service,
+                "at object path",
+                path,
+                "result:",
+                child_introspection.tostring(),
             )
 
             child_node = event.node.add(
                 child.name,
                 child_introspection,
-                allow_expand=len(child_introspection.nodes)>0,
+                allow_expand=len(child_introspection.nodes) > 0,
             )
 
-        if len(introspection.nodes)!=1:
-            return;
+        if len(introspection.nodes) != 1:
+            return
 
         assert child_node is not None
 
@@ -231,7 +234,9 @@ class BusPane(textual.containers.Container):
 
         self.uid = await utils.get_dbus_service_uid(self.bus, self.service)
         self.user_name = await utils.get_user_name(self.uid)
-        self.unique_name = await utils.get_dbus_service_unique_name(self.bus, self.service)
+        self.unique_name = await utils.get_dbus_service_unique_name(
+            self.bus, self.service
+        )
 
         self.initialize_objects_tree()
 
@@ -241,9 +246,7 @@ class BusPane(textual.containers.Container):
 
         introspection = None
         try:
-            introspection = await self.bus.introspect(
-                self.service, "/"
-            )
+            introspection = await self.bus.introspect(self.service, "/")
         except Exception as e:
             self.log.error(e)
         if introspection == None:
@@ -262,7 +265,7 @@ class BusPane(textual.containers.Container):
         event: textual.widgets.Tree.NodeSelected,
     ):
         object_path = utils.get_textual_tree_node_path(event.node)
-        if not len(object_path)==1:
+        if not len(object_path) == 1:
             object_path = object_path[:-1]
 
         self.object_path = object_path
@@ -279,7 +282,7 @@ class BusPane(textual.containers.Container):
         introspection = None
         try:
             introspection = await self.bus.introspect(
-            self.service, self.object_path
+                self.service, self.object_path
             )
         except Exception as e:
             self.log.error(e)
@@ -289,9 +292,8 @@ class BusPane(textual.containers.Container):
             self.mutate_reactive(BusPane.interfaces)
             return
 
-
         def dbus_interface_sort_key(
-            interface: dbus_next.introspection.Interface
+            interface: dbus_next.introspection.Interface,
         ) -> str:
             return interface.name
 
@@ -348,6 +350,7 @@ class Objects(textual.containers.Container):
         yield textual.containers.VerticalScroll(
             textual.widgets.LoadingIndicator()
         )
+
 
 class Interfaces(textual.containers.Container):
     DEFAULT_CSS = """
@@ -469,30 +472,14 @@ class ServiceDetails(textual.containers.Container):
             table.add_column("Key", key="key")
             table.add_column("Value", key="value")
 
-            table.add_row(
-                "Well Known Name", "...", key="name"
-            )
-            table.add_row(
-                "Unique Name", "...", key="unique_name"
-            )
-            table.add_row(
-                "PID", "...", key="pid"
-            )
-            table.add_row(
-                "Executable", "...", key="executable"
-            )
-            table.add_row(
-                "Command Line",  "...", key="command_line"
-            )
-            table.add_row(
-                "UID", "...", key="uid"
-            )
-            table.add_row(
-                "User Name", "...", key="user"
-            )
-            table.add_row(
-                "Object Path", "...", key="object_path"
-            )
+            table.add_row("Well Known Name", "...", key="name")
+            table.add_row("Unique Name", "...", key="unique_name")
+            table.add_row("PID", "...", key="pid")
+            table.add_row("Executable", "...", key="executable")
+            table.add_row("Command Line", "...", key="command_line")
+            table.add_row("UID", "...", key="uid")
+            table.add_row("User Name", "...", key="user")
+            table.add_row("Object Path", "...", key="object_path")
 
             yield Interfaces().data_bind(interfaces=ServiceDetails.interfaces)
 
