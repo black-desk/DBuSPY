@@ -96,11 +96,11 @@ poetry run -- textual run --dev dbuspy:DBuSPY
   - [x] Properties
   - [x] Methods
   - [x] Signals
-  - [ ] Annotations
+  - [x] Annotations
     - [x] Interfaces
-    - [ ] Properties
-    - [ ] Methods
-    - [ ] Signals
+    - [x] Properties
+    - [x] Methods
+    - [x] Signals
 - [ ] Perform D-Bus methods call
 - [ ] Copy D-Bus methods call as
   - [ ] `dbus-send` command

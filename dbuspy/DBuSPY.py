@@ -10,6 +10,7 @@ import textual.css.query
 import textual.message
 import textual.reactive
 import textual.widgets
+import textual.screen
 import typing
 
 
@@ -17,7 +18,7 @@ class DBuSPY(textual.app.App):
     """A Textual app like d-feet."""
 
     BINDINGS = [
-        textual.binding.Binding("q", "quit", "Quit"),
+        textual.binding.Binding("escape,q", "quit", "Quit"),
     ]
 
     def compose(self) -> textual.app.ComposeResult:
@@ -153,7 +154,8 @@ class ObjectsTree(textual.widgets.Tree):
         if len(introspection.nodes) != 1:
             return
 
-        assert child_node is not None
+        if child_node is None:
+            return
 
         child_node.expand()
 
@@ -167,11 +169,411 @@ class UpdateObjectsTree(textual.message.Message):
 
 
 class MemberSelected(textual.message.Message):
-    def __init__(self, interface_name: str, member_type: str, member_name: str):
+    def __init__(
+        self,
+        interface_name: str,
+        member_name: str,
+    ):
         self.interface_name = interface_name
-        self.member_type = member_type
         self.member_name = member_name
         super().__init__()
+
+
+class MethodDetails(textual.containers.Container):
+    DEFAULT_CSS = """
+    MethodDetails {
+        height: auto;
+    }
+    MethodDetails > Horizontal {
+        height: auto;
+    }
+    MethodDetails > Horizontal > Label {
+        width: 1fr;
+        height: 100%;
+        content-align: center middle;
+    }
+    MethodDetails > Horizontal > Button {
+        width: 1fr;
+        height: auto;
+        content-align: center middle;
+    }
+    MethodDetails > Horizontal > TextArea {
+        width: 4fr;
+        height: auto;
+    }
+    """
+    def __init__(
+        self,
+        service: str,
+        path: str,
+        interface: str,
+        introspection: dbus_next.introspection.Method,
+    ):
+        self.service = service
+        self.path = path
+        self.interface = interface
+        self.introspection = introspection
+        super().__init__()
+
+    def compose(self) -> textual.app.ComposeResult:
+        if self.introspection.annotations:
+
+            yield textual.widgets.Label(
+                rich.text.Text("Annotation(s)", style="bold")
+            )
+            for key, value in self.introspection.annotations.items():
+                with textual.widgets.Collapsible(
+                    title=key,
+                ):
+                    yield textual.widgets.Label(value)
+
+            yield textual.widgets.Rule()
+
+        if self.introspection.in_args:
+
+            yield textual.widgets.Label(
+                rich.text.Text("Input(s)", style="bold")
+            )
+
+            for index, arg in enumerate(self.introspection.in_args):
+                with textual.containers.Horizontal():
+                    yield textual.widgets.Label(
+                        arg.name or "arg_" + str(index),
+                    )
+                    yield textual.widgets.Label(str(arg.signature))
+                    yield textual.widgets.TextArea(
+                        tab_behavior='indent',
+                        soft_wrap=False,
+                    )
+                if arg.annotations:
+                    with textual.widgets.Collapsible(
+                        title="Annotation(s) of " + arg.name,
+                    ):
+                        table = textual.widgets.DataTable(show_header=False)
+                        yield table
+                        table.add_column("Key")
+                        table.add_column("Value")
+                        for key, value in arg.annotations.items():
+                            table.add_row(key, value)
+
+            yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Operations", style="bold")
+        )
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Label("Copy method call as");
+            yield textual.widgets.Button("dbus-send")
+            yield textual.widgets.Button("gdbus")
+            yield textual.widgets.Button("qdbus")
+            yield textual.widgets.Button("busctl")
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Button("Execute method call")
+
+        yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Output(s)", style="bold")
+        )
+
+        for index, arg in enumerate(self.introspection.out_args):
+            with textual.containers.Horizontal():
+                yield textual.widgets.Label(
+                    arg.name or "arg_" + str(index),
+                )
+                yield textual.widgets.Label(str(arg.signature))
+                yield textual.widgets.TextArea(
+                    soft_wrap=False,
+                    read_only=True,
+                )
+
+
+class SignalDetails(textual.containers.Container):
+
+    DEFAULT_CSS = """
+    SignalDetails {
+        height: auto;
+    }
+    SignalDetails > Horizontal {
+        height: auto;
+    }
+    SignalDetails > Horizontal > Label {
+        width: 1fr;
+        height: 100%;
+        content-align: center middle;
+    }
+    SignalDetails > Horizontal > Button {
+        width: 1fr;
+        height: auto;
+        content-align: center middle;
+    }
+    """
+
+    def __init__(
+        self,
+        service: str,
+        path: str,
+        interface: str,
+        introspection: dbus_next.introspection.Signal,
+    ):
+        self.service = service
+        self.path = path
+        self.interface = interface
+        self.introspection = introspection
+        super().__init__()
+
+    def compose(self) -> textual.app.ComposeResult:
+        if self.introspection.annotations:
+
+            yield textual.widgets.Label(
+                rich.text.Text("Annotation(s)", style="bold")
+            )
+            for key, value in self.introspection.annotations.items():
+                with textual.widgets.Collapsible(
+                    title=key,
+                ):
+                    yield textual.widgets.Label(value)
+
+            yield textual.widgets.Rule()
+    
+        if self.introspection.args:
+
+            table = textual.widgets.DataTable(cursor_type="row")
+            yield table
+            table.add_columns("Name", "Signature")
+
+            for index, arg in enumerate(self.introspection.args):
+                table.add_row(
+                    arg.name or "arg_" + str(index),
+                    str(arg.signature)
+                )
+
+            yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Operations", style="bold")
+        )
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Label("Copy listen command for");
+            yield textual.widgets.Button("dbus-send")
+            yield textual.widgets.Button("gdbus")
+            yield textual.widgets.Button("qdbus")
+            yield textual.widgets.Button("busctl")
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Button("Listen signal")
+
+
+class PropertyDetails(textual.containers.Container):
+    
+    DEFAULT_CSS = """
+    PropertyDetails {
+        height: auto;
+    }
+    PropertyDetails > Horizontal {
+        height: auto;
+    }
+    PropertyDetails > Horizontal > Button {
+        width: 1fr;
+        height: auto;
+        content-align: center middle;
+    }
+    PropertyDetails > Horizontal > Label {
+        width: 1fr;
+        height: 100%;
+        content-align: center middle;
+    }
+    PropertyDetails > Label {
+        margin-bottom: 1;
+    }
+    PropertyDetails > TextArea {
+        height: auto;
+    }
+    """
+
+    def __init__(
+        self,
+        service: str,
+        path: str,
+        interface: str,
+        introspection: dbus_next.introspection.Property,
+    ):
+        self.service = service
+        self.path = path
+        self.interface = interface
+        self.introspection = introspection
+        super().__init__()
+
+    def compose(self) -> textual.app.ComposeResult:
+        if self.introspection.annotations:
+
+            yield textual.widgets.Label(
+                rich.text.Text("Annotation(s)", style="bold")
+            )
+            for key, value in self.introspection.annotations.items():
+                with textual.widgets.Collapsible(
+                    title=key,
+                ):
+                    yield textual.widgets.Label(value)
+
+            yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Value", style="bold"),
+        )
+
+        yield textual.widgets.TextArea()
+
+        yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Operations", style="bold")
+        )
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Label("Copy get command for");
+            yield textual.widgets.Button("dbus-send")
+            yield textual.widgets.Button("gdbus")
+            yield textual.widgets.Button("qdbus")
+            yield textual.widgets.Button("busctl")
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Label("Copy set command for");
+            yield textual.widgets.Button("dbus-send")
+            yield textual.widgets.Button("gdbus")
+            yield textual.widgets.Button("qdbus")
+            yield textual.widgets.Button("busctl")
+
+        with textual.containers.Horizontal():
+            yield textual.widgets.Button("Get")
+            yield textual.widgets.Button("Set")
+
+
+
+class MemberDetailsPage(textual.containers.Container):
+    DEFAULT_CSS = """
+    MemberDetailsPage {
+        border: round $border;
+        border-title-align: center;
+        border-title-style: bold;
+        padding: 0 1 0 1;
+        width: 90%;
+        height: 90%;
+    }
+    MemberDetailsPage > Center {
+        height: auto;
+        margin-top: 1
+    }
+    """
+
+    def __init__(
+        self,
+        service: str,
+        path: str,
+        interface: dbus_next.introspection.Interface,
+        member_name: str,
+    ):
+        super().__init__()
+        self.service = service
+        self.path = path
+        self.interface = interface
+        self.member_name = member_name
+
+    def compose(self) -> textual.app.ComposeResult:
+        with textual.containers.Center():
+            yield textual.widgets.Label( 
+                rich.text.Text(
+                    self.interface.name + "." + self.member_name, style="bold"
+                ),
+            )
+
+        yield textual.widgets.Rule()
+
+        with textual.containers.VerticalScroll():
+
+            table = textual.widgets.DataTable(
+                show_header=False, show_cursor=False,
+            )
+            yield table
+            table.add_column("Key", key="key")
+            table.add_column("Value", key="value")
+            table.add_row("Service name", self.service)
+            table.add_row("Object path", self.path)
+
+            yield textual.widgets.Rule()
+
+            for method in self.interface.methods:
+                if method.name != self.member_name:
+                    continue
+
+                table.add_row("Type", "method")
+
+                yield MethodDetails(
+                    self.service, self.path, self.interface.name, method
+                )
+                return
+
+            for property in self.interface.properties:
+                if property.name != self.member_name:
+                    continue
+
+                table.add_row("Type", "property")
+                table.add_row("Signature", property.signature)
+
+                yield PropertyDetails(
+                    self.service, self.path, self.interface.name, property
+                )
+                return
+
+            for signal in self.interface.signals:
+                if signal.name != self.member_name:
+                    continue
+
+                table.add_row("Type", "signal")
+
+                yield SignalDetails(
+                    self.service, self.path, self.interface.name, signal
+                )
+                return
+
+            assert False
+
+
+class MemberScreen(textual.screen.Screen):
+    DEFAULT_CSS = """
+    MemberScreen {
+        align: center middle;
+        background: $surface 50%;
+    }
+    """
+    BINDINGS = [
+        textual.binding.Binding("escape,q", "app.pop_screen", "Close"),
+    ]
+
+    def __init__(
+        self,
+        service: str,
+        path: str,
+        interface: dbus_next.introspection.Interface,
+        member_name: str,
+    ):
+        self.service = service
+        self.path = path
+        self.interface = interface
+        self.member_name = member_name
+        super().__init__()
+
+    def compose(self) -> textual.app.ComposeResult:
+        yield textual.widgets.Footer()
+        yield MemberDetailsPage(
+            self.service,
+            self.path,
+            self.interface,
+            self.member_name,
+        )
 
 
 class BusPane(textual.containers.Container):
@@ -332,7 +734,28 @@ class BusPane(textual.containers.Container):
         self.mutate_reactive(BusPane.interfaces)
 
     def on_member_selected(self, event: MemberSelected):
-        pass
+        assert self.service
+        assert self.object_path
+        assert self.objects_tree
+        assert self.interfaces
+
+        selected_interface = None
+
+        for interface in self.interfaces:
+            if interface.name != event.interface_name:
+                continue
+            selected_interface = interface
+
+        assert selected_interface != None
+
+        self.app.push_screen(
+            MemberScreen(
+                self.service,
+                self.object_path,
+                selected_interface,
+                event.member_name,
+            )
+        )
 
 
 class ServiceNamesTable(textual.containers.Container):
@@ -466,6 +889,9 @@ class Interfaces(textual.containers.Container):
                             yield table
                             table.add_column("Name", key="name")
                             table.add_column("Signature", key="signature")
+                            
+                            list.sort(interface.properties, key=lambda property: property.name)
+
                             for property in interface.properties:
                                 table.add_row(
                                     property.name,
@@ -484,6 +910,9 @@ class Interfaces(textual.containers.Container):
                             table.add_column("Name", key="name")
                             table.add_column("in", key="in")
                             table.add_column("out", key="out")
+
+                            list.sort(interface.methods, key=lambda method: method.name)
+
                             for method in interface.methods:
                                 table.add_row(
                                     method.name,
@@ -503,6 +932,9 @@ class Interfaces(textual.containers.Container):
                             yield table
                             table.add_column("Name", key="name")
                             table.add_column("Signature", key="signature")
+
+                            list.sort(interface.signals, key=lambda signal: signal.name)
+
                             for signal in interface.signals:
                                 table.add_row(
                                     signal.name,
@@ -523,6 +955,12 @@ class Interfaces(textual.containers.Container):
 
         if member_type == "annotations":
             return
+        elif member_type == "properties":
+            member_type = "property"
+        elif member_type == "signals":
+            member_type = "signal"
+        elif member_type == "methods":
+            member_type = "method"
 
         column = event.data_table.get_column_index("name")
         row = event.data_table.get_row(event.row_key)
@@ -539,9 +977,7 @@ class Interfaces(textual.containers.Container):
 
         interface_name = event.data_table.parent.parent.parent.parent.title
 
-        self.post_message(
-            MemberSelected(interface_name, member_type, member_name)
-        )
+        self.post_message(MemberSelected(interface_name, member_name))
 
 
 class ServiceDetails(textual.containers.Container):
