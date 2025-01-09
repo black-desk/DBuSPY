@@ -29,9 +29,11 @@ which can use to inspect [D-Bus][d-bus] API.
 [d-feet]: https://wiki.gnome.org/Apps(2f)DFeet.html
 [d-bus]: https://www.freedesktop.org/wiki/Software/dbus/
 
-## Screenshot
+## Screenshots
 
-![DBuSPY Screenshot](./assets/screenshot.svg)
+![DBuSPY Screenshot1](./assets/screenshot1.svg)
+
+![DBuSPY Screenshot2](./assets/screenshot2.svg)
 
 ## Install
 
