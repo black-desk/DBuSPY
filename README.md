@@ -97,32 +97,33 @@ poetry run -- textual run --dev dbuspy:DBuSPY
   - [x] Methods
   - [x] Signals
   - [ ] Annotations
+    - [x] Interfaces
     - [ ] Properties
     - [ ] Methods
     - [ ] Signals
 - [ ] Perform D-Bus methods call
-  - [ ] Copy D-Bus methods call as
-    - [ ] `dbus-send` command
-    - [ ] `gdbus` command
-    - [ ] `busctl` command
-    - [ ] `qdbus` command
+- [ ] Copy D-Bus methods call as
+  - [ ] `dbus-send` command
+  - [ ] `gdbus` command
+  - [ ] `busctl` command
+  - [ ] `qdbus` command
 - [ ] Read D-Bus properties
-  - [ ] Copy D-Bus property read method call as
-    - [ ] `dbus-send` command
-    - [ ] `gdbus` command
-    - [ ] `busctl` command
-    - [ ] `qdbus` command
+- [ ] Copy D-Bus property read method call as
+  - [ ] `dbus-send` command
+  - [ ] `gdbus` command
+  - [ ] `busctl` command
+  - [ ] `qdbus` command
 - [ ] Write D-Bus properties
-  - [ ] Copy D-Bus property write method call as
-    - [ ] `dbus-send` command
-    - [ ] `gdbus` command
-    - [ ] `busctl` command
-    - [ ] `qdbus` command
+- [ ] Copy D-Bus property write method call as
+  - [ ] `dbus-send` command
+  - [ ] `gdbus` command
+  - [ ] `busctl` command
+  - [ ] `qdbus` command
 - [ ] Monitor D-Bus signals
 - [ ] Monitor D-Bus properties change signal
 - [ ] Monitor D-Bus method call
-  - [ ] Copy captured D-Bus method call as
-    - [ ] `dbus-send` command
-    - [ ] `gdbus` command
-    - [ ] `busctl` command
-    - [ ] `qdbus` command
+- [ ] Copy captured D-Bus method call as
+  - [ ] `dbus-send` command
+  - [ ] `gdbus` command
+  - [ ] `busctl` command
+  - [ ] `qdbus` command
