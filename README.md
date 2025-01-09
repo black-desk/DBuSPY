@@ -1,5 +1,7 @@
 # DBuSPY
 
+<img align="right" src="./assets/DBuSPY.svg">
+
 - ![license][badge-shields-io-license]
 - ![checks][badge-shields-io-checks]
   [![codecov][badge-shields-io-codecov]][codecov]
@@ -18,10 +20,7 @@
 [badge-shields-io-release-date]: https://img.shields.io/github/release-date/black-desk/DBuSPY
 [badge-shields-io-commits-since-release]: https://img.shields.io/github/commits-since/black-desk/DBuSPY/latest/master
 
-> [!WARNING]
-> This program is in very early stage and may break or change frequently\!
-
-`DBuSPY` is a TUI program powered by [Textual][textual]
+`DBuSPY` is a pure python TUI program powered by [Textual][textual]
 inspired by [D-Feet][d-feet],
 which can use to inspect [D-Bus][d-bus] API.
 
@@ -36,6 +35,9 @@ which can use to inspect [D-Bus][d-bus] API.
 ![DBuSPY Screenshot2](./assets/screenshot2.svg)
 
 ## Install
+
+> [!WARNING]
+> This program is in very early stage and may break or change frequently!
 
 ### pipx
 
@@ -83,11 +85,33 @@ Then in another shell:
 poetry run -- textual run --dev dbuspy:DBuSPY
 ```
 
+## Motivation
+
+According to GNOME Wiki[^gnome-wiki],
+my daily use D-Bus debugger [D-Feet][d-feet] is no longer maintained.
+
+[^gnome-wiki]:
+    > D-Feet is no longer maintained.
+
+    [Source][d-feet]
+
+As I quite often debug system services
+like [Network Manager][network-manager] and [Systemd][systemd]
+over SSH connection without GUI desktop session available,
+a powerful TUI D-Bus debugger is needed.
+
+[network-manager]: https://networkmanager.dev/
+[systemd]: https://systemd.io/
+
 ## Project naming
 
-[D-Bus][d-bus] + spy + [py(thon)][python]
+[D(-)Bus][d-bus] + spy[^d-spy] + [py(thon)][python]
+
+[^d-spy]:
+    Inspired by [d-spy].
 
 [python]: https://www.python.org/
+[d-spy]: https://gitlab.gnome.org/GNOME/d-spy/
 
 ## Road map
 
