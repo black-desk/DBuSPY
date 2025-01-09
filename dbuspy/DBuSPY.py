@@ -157,11 +157,22 @@ class ObjectsTree(textual.widgets.Tree):
 
         child_node.expand()
 
+
 class UpdateServices(textual.message.Message):
     pass
 
+
 class UpdateObjectsTree(textual.message.Message):
     pass
+
+
+class MemberSelected(textual.message.Message):
+    def __init__(self, interface_name: str, member_type: str, member_name: str):
+        self.interface_name = interface_name
+        self.member_type = member_type
+        self.member_name = member_name
+        super().__init__()
+
 
 class BusPane(textual.containers.Container):
     services = textual.reactive.reactive[typing.Optional[list[str]]](None)
@@ -320,6 +331,9 @@ class BusPane(textual.containers.Container):
         self.set_reactive(BusPane.interfaces, introspection.interfaces)
         self.mutate_reactive(BusPane.interfaces)
 
+    def on_member_selected(self, event: MemberSelected):
+        pass
+
 
 class ServiceNamesTable(textual.containers.Container):
     BINDINGS = [
@@ -348,7 +362,7 @@ class ServiceNamesTable(textual.containers.Container):
         yield textual.widgets.Label(rich.text.Text("Services", style="bold"))
         with textual.containers.VerticalScroll():
             yield textual.widgets.DataTable(show_header=False)
-    
+
     def action_reload_services(self):
         self.post_message(UpdateServices())
 
@@ -380,7 +394,6 @@ class Objects(textual.containers.Container):
 
     def action_reload_objects(self):
         self.post_message(UpdateObjectsTree())
-
 
 
 class Interfaces(textual.containers.Container):
@@ -433,7 +446,8 @@ class Interfaces(textual.containers.Container):
                                 cursor_type="row",
                             )
                             yield table
-                            table.add_columns("Name", "Value")
+                            table.add_column("Name", key="name")
+                            table.add_column("Value", key="value")
                             for key, value in interface.annotations.items():
                                 table.add_row(
                                     key,
@@ -450,7 +464,8 @@ class Interfaces(textual.containers.Container):
                                 cursor_type="row",
                             )
                             yield table
-                            table.add_columns("Name", "Signature")
+                            table.add_column("Name", key="name")
+                            table.add_column("Signature", key="signature")
                             for property in interface.properties:
                                 table.add_row(
                                     property.name,
@@ -466,7 +481,9 @@ class Interfaces(textual.containers.Container):
                                 cursor_type="row",
                             )
                             yield table
-                            table.add_columns("Name", "in", "out")
+                            table.add_column("Name", key="name")
+                            table.add_column("in", key="in")
+                            table.add_column("out", key="out")
                             for method in interface.methods:
                                 table.add_row(
                                     method.name,
@@ -484,12 +501,47 @@ class Interfaces(textual.containers.Container):
                                 cursor_type="row",
                             )
                             yield table
-                            table.add_columns("Name", "Signature")
+                            table.add_column("Name", key="name")
+                            table.add_column("Signature", key="signature")
                             for signal in interface.signals:
                                 table.add_row(
                                     signal.name,
                                     signal.signature,
                                 )
+
+    def on_data_table_row_selected(
+        self, event: textual.widgets.DataTable.RowSelected
+    ):
+        assert isinstance(
+            event.data_table.parent, textual.widgets.Collapsible.Contents
+        )
+        assert isinstance(
+            event.data_table.parent.parent, textual.widgets.Collapsible
+        )
+
+        member_type = event.data_table.parent.parent.title.lower()
+
+        if member_type == "annotations":
+            return
+
+        column = event.data_table.get_column_index("name")
+        row = event.data_table.get_row(event.row_key)
+        member_name = row[column]
+
+        assert isinstance(
+            event.data_table.parent.parent.parent,
+            textual.widgets.Collapsible.Contents,
+        )
+        assert isinstance(
+            event.data_table.parent.parent.parent.parent,
+            textual.widgets.Collapsible,
+        )
+
+        interface_name = event.data_table.parent.parent.parent.parent.title
+
+        self.post_message(
+            MemberSelected(interface_name, member_type, member_name)
+        )
 
 
 class ServiceDetails(textual.containers.Container):
