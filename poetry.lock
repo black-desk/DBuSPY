@@ -295,7 +295,7 @@ develop = false
 type = "git"
 url = "https://github.com/black-desk/python-dbus-next.git"
 reference = "DBuSPY"
-resolved_reference = "c3be75541aeee4e727096d3b242f6285c673a8bb"
+resolved_reference = "af9116af7fb9b0140ae1c2e50a76b8cc3659bf16"
 
 [[package]]
 name = "exceptiongroup"
