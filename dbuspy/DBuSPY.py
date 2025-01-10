@@ -1024,12 +1024,6 @@ class Interfaces(textual.containers.Container):
 
         if member_type == "annotations":
             return
-        elif member_type == "properties":
-            member_type = "property"
-        elif member_type == "signals":
-            member_type = "signal"
-        elif member_type == "methods":
-            member_type = "method"
 
         column = event.data_table.get_column_index("name")
         row = event.data_table.get_row(event.row_key)
