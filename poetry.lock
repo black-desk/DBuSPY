@@ -282,20 +282,20 @@ tomli = {version = "*", optional = true, markers = "python_full_version <= \"3.1
 toml = ["tomli"]
 
 [[package]]
-name = "dbus_next"
-version = "0.2.3"
-description = "A zero-dependency DBus library for Python with asyncio support"
+name = "dbus-fast"
+version = "2.28.0"
+description = "A faster version of dbus-next"
 optional = false
-python-versions = ">=3.6.0"
+python-versions = "^3.9"
 groups = ["main"]
 files = []
 develop = false
 
 [package.source]
 type = "git"
-url = "https://github.com/black-desk/python-dbus-next.git"
-reference = "annotations"
-resolved_reference = "fab56539157c6e42d4be0cf6df9477c1adfa943c"
+url = "https://github.com/black-desk/dbus-fast.git"
+reference = "DBuSPY"
+resolved_reference = "2d5600eb81dbaf06c035861f20b513907c7c53b0"
 
 [[package]]
 name = "exceptiongroup"
@@ -1237,4 +1237,4 @@ dev = ["pytest", "pytest-cov", "textual-dev"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.0, <4.0.0"
-content-hash = "c8d3944961be5463270ce044fbaf3ab03e5fc7a9d4b38ec505173ae36a57fdf3"
+content-hash = "f7634476226a0323a2eb196956689d6aa26fec9ff67ac997b3caa422e90a3093"
