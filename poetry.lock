@@ -294,8 +294,8 @@ develop = false
 [package.source]
 type = "git"
 url = "https://github.com/black-desk/python-dbus-next.git"
-reference = "annotations"
-resolved_reference = "fab56539157c6e42d4be0cf6df9477c1adfa943c"
+reference = "DBuSPY"
+resolved_reference = "4c4cfc37fd515f2a1dfa456853966e19ddcedcb3"
 
 [[package]]
 name = "exceptiongroup"
