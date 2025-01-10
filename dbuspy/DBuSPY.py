@@ -1,5 +1,6 @@
 from . import utils
 import dbus_fast.aio
+import dbus_fast.auth
 import os
 import rich.text
 import shlex
@@ -12,10 +13,12 @@ import textual.reactive
 import textual.screen
 import textual.widgets
 import typing
+import uuid
+import traceback
 
 
 class DBuSPY(textual.app.App):
-    """A Textual app like d-feet."""
+    """A D-Feet like application."""
 
     BINDINGS = [
         textual.binding.Binding("escape,q", "quit", "Quit"),
@@ -27,9 +30,28 @@ class DBuSPY(textual.app.App):
         yield MainPage()
 
 
+class MessageBus(dbus_fast.aio.message_bus.MessageBus):
+    def __init__(
+        self,
+        bus_address: typing.Optional[str] = None,
+        bus_type: dbus_fast.BusType = dbus_fast.BusType.SESSION,
+        auth: typing.Optional[dbus_fast.auth.Authenticator] = None,
+        negotiate_unix_fd: bool = False,
+    ):
+        super().__init__(
+            bus_address=bus_address,
+            bus_type=bus_type,
+            auth=auth,
+            negotiate_unix_fd=negotiate_unix_fd,
+        )
+
+        self.bus_type = bus_type
+        self.bus_address = bus_address
+
+
 class MainPage(textual.containers.Container):
     message_buses = textual.reactive.reactive[
-        typing.Optional[dict[str, dbus_fast.aio.message_bus.MessageBus]]
+        typing.Optional[dict[str, MessageBus]]
     ](None)
 
     def on_mount(self):
@@ -42,13 +64,11 @@ class MainPage(textual.containers.Container):
 
         # NOTE: root user doesn't have session bus
         if os.getuid() != 0:
-            message_buses["session"] = (
-                await dbus_fast.aio.message_bus.MessageBus(
-                    bus_type=dbus_fast.constants.BusType.SESSION
-                ).connect()
-            )
+            message_buses["session"] = await MessageBus(
+                bus_type=dbus_fast.constants.BusType.SESSION
+            ).connect()
 
-        message_buses["system"] = await dbus_fast.aio.message_bus.MessageBus(
+        message_buses["system"] = await MessageBus(
             bus_type=dbus_fast.constants.BusType.SYSTEM
         ).connect()
 
@@ -61,8 +81,6 @@ class MainPage(textual.containers.Container):
     async def watch_message_buses(self):
         if self.message_buses == None:
             return
-
-        self.log.info("Update message buses to", self.message_buses)
 
         for id, bus in self.message_buses.items():
             try:
@@ -123,6 +141,7 @@ class ObjectsTree(textual.widgets.Tree):
                 child_introspection = await self.bus.introspect(
                     self.service,
                     path,
+                    validate_property_names=False,
                 )
             except Exception as e:
                 self.log.info(
@@ -180,6 +199,48 @@ class MemberSelected(textual.message.Message):
         super().__init__()
 
 
+class GeneratedCommandScreen(textual.screen.Screen):
+    DEFAULT_CSS = """
+    GeneratedCommandScreen  {
+        align: center middle;
+        background: $surface 50%;
+    }
+    GeneratedCommandScreen > VerticalScroll {
+        border: round $border;
+        border-title-align: center;
+        border-title-style: bold;
+        padding: 0 1 0 1;
+        width: 80%;
+        height: 80%;
+    }
+    GeneratedCommandScreen > VerticalScroll > Center {
+        height: auto;
+        margin-top: 1
+    }
+    """
+    BINDINGS = [
+        textual.binding.Binding("escape,q", "app.pop_screen", "Close"),
+    ]
+
+    def __init__(
+        self,
+        command: str,
+    ):
+        self.command = command
+        super().__init__()
+
+    def compose(self) -> textual.app.ComposeResult:
+        with textual.containers.VerticalScroll():
+            with textual.containers.Center():
+                yield textual.widgets.Label(
+                    rich.text.Text("Generated command", style="bold")
+                )
+            yield textual.widgets.TextArea(
+                read_only=True,
+                text=self.command,
+            )
+
+
 class MethodDetails(textual.containers.Container):
     DEFAULT_CSS = """
     MethodDetails {
@@ -214,17 +275,27 @@ class MethodDetails(textual.containers.Container):
     }
     """
 
+    button_callback: dict[str, typing.Callable] = {}
+
     def __init__(
         self,
         service: str,
         path: str,
         interface: str,
         introspection: dbus_fast.introspection.Method,
+        bus_type: typing.Optional[dbus_fast.constants.BusType] = None,
+        bus_address: typing.Optional[str] = None,
     ):
+        self.bus_type = bus_type
+        self.bus_address = bus_address
+
+        assert not (bus_type and bus_address)
+
         self.service = service
         self.path = path
         self.interface = interface
         self.introspection = introspection
+        self.button_callback = {}
         super().__init__()
 
     def compose(self) -> textual.app.ComposeResult:
@@ -256,6 +327,7 @@ class MethodDetails(textual.containers.Container):
                     yield textual.widgets.TextArea(
                         tab_behavior="indent",
                         soft_wrap=False,
+                        id="arg-" + str(index),
                     )
                 if arg.annotations:
                     with textual.widgets.Collapsible(
@@ -306,21 +378,118 @@ class MethodDetails(textual.containers.Container):
             title="Generate method call command",
             collapsed=True,
         ):
+            command_type = utils.CommandType.METHOD_CALL
             with textual.containers.HorizontalScroll():
-                yield textual.widgets.Button("dbus-send")
-                yield textual.widgets.Button("gdbus")
-                yield textual.widgets.Button("qdbus")
-                yield textual.widgets.Button("busctl")
+                for tool in [
+                    utils.ToolType.DBUS_SEND,
+                    utils.ToolType.GDBUS,
+                    utils.ToolType.QDBUS,
+                    utils.ToolType.BUSCTL,
+                ]:
+                    id = "id-" + uuid.uuid4().hex
+                    yield textual.widgets.Button(tool.value, id=id)
+                    self.button_callback[id] = (
+                        lambda tool=tool, command_type=command_type: self.push_generate_command_screen(
+                            tool, command_type
+                        )
+                    )
 
         with textual.widgets.Collapsible(
-            title="Generate monitor command",
+            title="Generate method-call monitor command",
             collapsed=True,
         ):
+            command_type = utils.CommandType.MONITOR_METHOD_CALL
             with textual.containers.HorizontalScroll():
-                yield textual.widgets.Button("dbus-send")
-                yield textual.widgets.Button("gdbus")
-                yield textual.widgets.Button("qdbus")
-                yield textual.widgets.Button("busctl")
+                for tool in [
+                    utils.ToolType.DBUS_MONITOR,
+                    utils.ToolType.BUSCTL,
+                    utils.ToolType.GDBUS,
+                    utils.ToolType.QDBUS,
+                ]:
+                    id = "id-" + uuid.uuid4().hex
+                    yield textual.widgets.Button(tool.value, id=id)
+                    self.button_callback[id] = (
+                        lambda tool=tool, command_type=command_type: self.push_generate_command_screen(
+                            tool, command_type
+                        )
+                    )
+
+        with textual.widgets.Collapsible(
+            title="Generate method-return monitor command",
+            collapsed=True,
+        ):
+            command_type = utils.CommandType.MONITOR_METHOD_RETURN
+            with textual.containers.HorizontalScroll():
+                for tool in [
+                    utils.ToolType.DBUS_MONITOR,
+                    utils.ToolType.BUSCTL,
+                    utils.ToolType.GDBUS,
+                    utils.ToolType.QDBUS,
+                ]:
+                    id = "id-" + uuid.uuid4().hex
+                    yield textual.widgets.Button(tool.value, id=id)
+                    self.button_callback[id] = (
+                        lambda tool=tool, command_type=command_type: self.push_generate_command_screen(
+                            tool, command_type
+                        )
+                    )
+
+    def collect_arguments(self) -> list[dbus_fast.Variant]:
+        ret: list[dbus_fast.Variant] = []
+        for index, arg in enumerate(self.introspection.in_args):
+            widget = self.query_one("#arg-" + str(index))
+            assert isinstance(widget, textual.widgets.TextArea)
+            ret.append(utils.parse_dbus_argument(arg.signature, widget.text))
+        return ret
+
+    def push_generate_command_screen(
+        self,
+        tool: utils.ToolType,
+        type: utils.CommandType,
+    ):
+        try:
+            arguments = None
+            if type == utils.CommandType.METHOD_CALL:
+                arguments = self.collect_arguments()
+
+            self.log.debug(arguments)
+
+            command = utils.generate_command(
+                self.bus_type,
+                self.bus_address,
+                self.service,
+                self.path,
+                self.interface,
+                self.introspection.name,
+                arguments,
+                tool=tool,
+                type=type,
+            )
+        except utils.DBusArgumentPraseError as e:
+            self.app.push_screen(GeneratedCommandScreen("Error: " + str(e)))
+            return
+        except NotImplementedError as e:
+            self.app.push_screen(GeneratedCommandScreen("Not implemented"))
+            return
+        except Exception as e:
+            self.app.push_screen(
+                GeneratedCommandScreen("Unknown error: " + repr(e))
+            )
+            return
+
+        self.app.push_screen(
+            GeneratedCommandScreen(
+                " ".join([shlex.quote(arg) for arg in command])
+            )
+        )
+
+    def on_button_pressed(self, event: textual.widgets.Button.Pressed):
+        if event.button.id not in self.button_callback:
+            self.log.warning("Button", event.button.id, "has no callback")
+            return
+
+        self.button_callback[event.button.id]()
+        return
 
 
 class SignalDetails(textual.containers.Container):
@@ -354,17 +523,24 @@ class SignalDetails(textual.containers.Container):
     }
     """
 
+    button_callback: dict[str, typing.Callable] = {}
+
     def __init__(
         self,
         service: str,
         path: str,
         interface: str,
         introspection: dbus_fast.introspection.Signal,
+        bus_type: typing.Optional[dbus_fast.constants.BusType] = None,
+        bus_address: typing.Optional[str] = None,
     ):
+        self.bus_type = bus_type
+        self.bus_address = bus_address
         self.service = service
         self.path = path
         self.interface = interface
         self.introspection = introspection
+        self.button_callback = {}
         super().__init__()
 
     def compose(self) -> textual.app.ComposeResult:
@@ -409,15 +585,60 @@ class SignalDetails(textual.containers.Container):
             title="Generate monitor command",
             collapsed=True,
         ):
+            command_type = utils.CommandType.MONITOR_SIGNAL
             with textual.containers.HorizontalScroll():
-                yield textual.widgets.Button("dbus-send")
-                yield textual.widgets.Button("gdbus")
-                yield textual.widgets.Button("qdbus")
-                yield textual.widgets.Button("busctl")
+                for tool in [
+                    utils.ToolType.DBUS_MONITOR,
+                    utils.ToolType.BUSCTL,
+                    utils.ToolType.GDBUS,
+                    utils.ToolType.QDBUS,
+                ]:
+                    id = "id-" + uuid.uuid4().hex
+                    yield textual.widgets.Button(tool.value, id=id)
+                    self.button_callback[id] = (
+                        lambda tool=tool, command_type=command_type: self.push_generate_command_screen(
+                            tool, command_type
+                        )
+                    )
+
+    def push_generate_command_screen(
+        self,
+        tool: utils.ToolType,
+        type: utils.CommandType,
+    ):
+        assert self.introspection.name
+
+        try:
+            command = utils.generate_command(
+                self.bus_type,
+                self.bus_address,
+                self.service,
+                self.path,
+                self.interface,
+                self.introspection.name,
+                None,
+                tool=tool,
+                type=type,
+            )
+        except NotImplementedError:
+            self.app.push_screen(GeneratedCommandScreen("Not implemented"))
+            return
+
+        self.app.push_screen(
+            GeneratedCommandScreen(
+                " ".join([shlex.quote(arg) for arg in command])
+            )
+        )
+
+    def on_button_pressed(self, event: textual.widgets.Button.Pressed):
+        if event.button.id not in self.button_callback:
+            self.log.warning("Button", event.button.id, "has no callback")
+            return
+        self.button_callback[event.button.id]()
+        return
 
 
 class PropertyDetails(textual.containers.Container):
-
     DEFAULT_CSS = """
     PropertyDetails {
         height: auto;
@@ -445,11 +666,15 @@ class PropertyDetails(textual.containers.Container):
         path: str,
         interface: str,
         introspection: dbus_fast.introspection.Property,
+        bus_type: typing.Optional[dbus_fast.constants.BusType] = None,
+        bus_address: typing.Optional[str] = None,
     ):
         self.service = service
         self.path = path
         self.interface = interface
         self.introspection = introspection
+        self.bus_type = bus_type
+        self.bus_address = bus_address
         super().__init__()
 
     def compose(self) -> textual.app.ComposeResult:
@@ -528,12 +753,15 @@ class MemberDetailsPage(textual.containers.Container):
 
     def __init__(
         self,
+        bus: MessageBus,
         service: str,
         path: str,
         interface: dbus_fast.introspection.Interface,
         member_name: str,
     ):
         super().__init__()
+
+        self.bus = bus
         self.service = service
         self.path = path
         self.interface = interface
@@ -572,7 +800,12 @@ class MemberDetailsPage(textual.containers.Container):
                 table.add_row("Type", "Method")
 
                 yield MethodDetails(
-                    self.service, self.path, self.interface.name, method
+                    self.service,
+                    self.path,
+                    self.interface.name,
+                    method,
+                    bus_type=self.bus.bus_type,
+                    bus_address=self.bus.bus_address,
                 )
                 return
 
@@ -584,7 +817,12 @@ class MemberDetailsPage(textual.containers.Container):
                 table.add_row("Signature", property.signature)
 
                 yield PropertyDetails(
-                    self.service, self.path, self.interface.name, property
+                    self.service,
+                    self.path,
+                    self.interface.name,
+                    property,
+                    bus_type=self.bus.bus_type,
+                    bus_address=self.bus.bus_address,
                 )
                 return
 
@@ -595,7 +833,12 @@ class MemberDetailsPage(textual.containers.Container):
                 table.add_row("Type", "Signal")
 
                 yield SignalDetails(
-                    self.service, self.path, self.interface.name, signal
+                    self.service,
+                    self.path,
+                    self.interface.name,
+                    signal,
+                    bus_type=self.bus.bus_type,
+                    bus_address=self.bus.bus_address,
                 )
                 return
 
@@ -615,20 +858,24 @@ class MemberScreen(textual.screen.Screen):
 
     def __init__(
         self,
+        bus: MessageBus,
         service: str,
         path: str,
         interface: dbus_fast.introspection.Interface,
         member_name: str,
     ):
+        super().__init__()
+
+        self.bus = bus
         self.service = service
         self.path = path
         self.interface = interface
         self.member_name = member_name
-        super().__init__()
 
     def compose(self) -> textual.app.ComposeResult:
         yield textual.widgets.Footer()
         yield MemberDetailsPage(
+            self.bus,
             self.service,
             self.path,
             self.interface,
@@ -653,7 +900,7 @@ class BusPane(textual.containers.Container):
         typing.Optional[list[dbus_fast.introspection.Interface]]
     ](None)
 
-    def __init__(self, bus: dbus_fast.aio.message_bus.MessageBus):
+    def __init__(self, bus: MessageBus):
         super().__init__()
         self.bus = bus
 
@@ -736,7 +983,9 @@ class BusPane(textual.containers.Container):
         introspection = None
 
         try:
-            introspection = await self.bus.introspect(self.service, "/")
+            introspection = await self.bus.introspect(
+                self.service, "/", validate_property_names=False
+            )
         except Exception as e:
             self.log.error(e)
 
@@ -773,7 +1022,7 @@ class BusPane(textual.containers.Container):
         introspection = None
         try:
             introspection = await self.bus.introspect(
-                self.service, self.object_path
+                self.service, self.object_path, validate_property_names=False
             )
         except Exception as e:
             self.log.error(e)
@@ -810,6 +1059,7 @@ class BusPane(textual.containers.Container):
 
         self.app.push_screen(
             MemberScreen(
+                self.bus,
                 self.service,
                 self.object_path,
                 selected_interface,
