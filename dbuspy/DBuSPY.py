@@ -279,20 +279,24 @@ class MethodDetails(textual.containers.Container):
 
         yield textual.widgets.Rule()
 
-        yield textual.widgets.Label(rich.text.Text("Output(s)", style="bold"))
+        if self.introspection.out_args:
 
-        for index, arg in enumerate(self.introspection.out_args):
-            with textual.containers.HorizontalScroll():
-                yield textual.widgets.Label(
-                    arg.name or "arg_" + str(index),
-                )
-                yield textual.widgets.Label(str(arg.signature))
-                yield textual.widgets.TextArea(
-                    soft_wrap=False,
-                    read_only=True,
-                )
+            yield textual.widgets.Label(
+                rich.text.Text("Output(s)", style="bold")
+            )
 
-        yield textual.widgets.Rule()
+            for index, arg in enumerate(self.introspection.out_args):
+                with textual.containers.HorizontalScroll():
+                    yield textual.widgets.Label(
+                        arg.name or "arg_" + str(index),
+                    )
+                    yield textual.widgets.Label(str(arg.signature))
+                    yield textual.widgets.TextArea(
+                        soft_wrap=False,
+                        read_only=True,
+                    )
+
+            yield textual.widgets.Rule()
 
         yield textual.widgets.Label(
             rich.text.Text("Utilities", style="bold"),
