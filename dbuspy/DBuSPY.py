@@ -184,24 +184,35 @@ class MethodDetails(textual.containers.Container):
     MethodDetails {
         height: auto;
     }
-    MethodDetails > Horizontal {
+    MethodDetails > Label {
+        padding-bottom: 1;
+    }
+    MethodDetails > HorizontalScroll {
         height: auto;
     }
-    MethodDetails > Horizontal > Label {
+    MethodDetails > HorizontalScroll > Label {
         width: 1fr;
         height: 100%;
         content-align: center middle;
     }
-    MethodDetails > Horizontal > Button {
-        width: 1fr;
-        height: auto;
-        content-align: center middle;
-    }
-    MethodDetails > Horizontal > TextArea {
+    MethodDetails > HorizontalScroll > TextArea {
         width: 4fr;
         height: auto;
     }
+    MethodDetails > Collapsible > Contents {
+        height: auto;
+    }
+    MethodDetails > Collapsible > Contents > HorizontalScroll {
+        height: auto;
+    }
+    MethodDetails > Collapsible > Contents > HorizontalScroll > Label {
+        width: auto;
+        margin-right: 2;
+        height: 100%;
+        content-align: center middle;
+    }
     """
+
     def __init__(
         self,
         service: str,
@@ -236,13 +247,13 @@ class MethodDetails(textual.containers.Container):
             )
 
             for index, arg in enumerate(self.introspection.in_args):
-                with textual.containers.Horizontal():
+                with textual.containers.HorizontalScroll():
                     yield textual.widgets.Label(
                         arg.name or "arg_" + str(index),
                     )
                     yield textual.widgets.Label(str(arg.signature))
                     yield textual.widgets.TextArea(
-                        tab_behavior='indent',
+                        tab_behavior="indent",
                         soft_wrap=False,
                     )
                 if arg.annotations:
@@ -258,28 +269,18 @@ class MethodDetails(textual.containers.Container):
 
             yield textual.widgets.Rule()
 
-        yield textual.widgets.Label(
-            rich.text.Text("Operations", style="bold")
-        )
+        yield textual.widgets.Label(rich.text.Text("Operations", style="bold"))
 
-        with textual.containers.Horizontal():
-            yield textual.widgets.Label("Copy method call as");
-            yield textual.widgets.Button("dbus-send")
-            yield textual.widgets.Button("gdbus")
-            yield textual.widgets.Button("qdbus")
-            yield textual.widgets.Button("busctl")
-
-        with textual.containers.Horizontal():
-            yield textual.widgets.Button("Execute method call")
+        with textual.containers.HorizontalScroll():
+            yield textual.widgets.Button("Execute")
+            yield textual.widgets.Button("Monitor")
 
         yield textual.widgets.Rule()
 
-        yield textual.widgets.Label(
-            rich.text.Text("Output(s)", style="bold")
-        )
+        yield textual.widgets.Label(rich.text.Text("Output(s)", style="bold"))
 
         for index, arg in enumerate(self.introspection.out_args):
-            with textual.containers.Horizontal():
+            with textual.containers.HorizontalScroll():
                 yield textual.widgets.Label(
                     arg.name or "arg_" + str(index),
                 )
@@ -289,6 +290,32 @@ class MethodDetails(textual.containers.Container):
                     read_only=True,
                 )
 
+        yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Utilities", style="bold"),
+        )
+
+        with textual.widgets.Collapsible(
+            title="Generate method call command",
+            collapsed=True,
+        ):
+            with textual.containers.HorizontalScroll():
+                yield textual.widgets.Button("dbus-send")
+                yield textual.widgets.Button("gdbus")
+                yield textual.widgets.Button("qdbus")
+                yield textual.widgets.Button("busctl")
+
+        with textual.widgets.Collapsible(
+            title="Generate monitor command",
+            collapsed=True,
+        ):
+            with textual.containers.HorizontalScroll():
+                yield textual.widgets.Button("dbus-send")
+                yield textual.widgets.Button("gdbus")
+                yield textual.widgets.Button("qdbus")
+                yield textual.widgets.Button("busctl")
+
 
 class SignalDetails(textual.containers.Container):
 
@@ -296,17 +323,27 @@ class SignalDetails(textual.containers.Container):
     SignalDetails {
         height: auto;
     }
-    SignalDetails > Horizontal {
+    SignalDetails > Label {
+        padding-bottom: 1;
+    }
+    SignalDetails > HorizontalScroll {
         height: auto;
     }
-    SignalDetails > Horizontal > Label {
+    SignalDetails > HorizontalScroll > Label {
         width: 1fr;
         height: 100%;
         content-align: center middle;
     }
-    SignalDetails > Horizontal > Button {
-        width: 1fr;
+    SignalDetails > Collapsible > Contents {
         height: auto;
+    }
+    SignalDetails > Collapsible > Contents > HorizontalScroll {
+        height: auto;
+    }
+    SignalDetails > Collapsible > Contents > HorizontalScroll > Label {
+        width: auto;
+        margin-right: 2;
+        height: 100%;
         content-align: center middle;
     }
     """
@@ -337,7 +374,7 @@ class SignalDetails(textual.containers.Container):
                     yield textual.widgets.Label(value)
 
             yield textual.widgets.Rule()
-    
+
         if self.introspection.args:
 
             table = textual.widgets.DataTable(cursor_type="row")
@@ -346,50 +383,52 @@ class SignalDetails(textual.containers.Container):
 
             for index, arg in enumerate(self.introspection.args):
                 table.add_row(
-                    arg.name or "arg_" + str(index),
-                    str(arg.signature)
+                    arg.name or "arg_" + str(index), str(arg.signature)
                 )
 
             yield textual.widgets.Rule()
 
+        yield textual.widgets.Label(rich.text.Text("Operations", style="bold"))
+
+        with textual.containers.HorizontalScroll():
+            yield textual.widgets.Button("Listen")
+
+        yield textual.widgets.Rule()
+
         yield textual.widgets.Label(
-            rich.text.Text("Operations", style="bold")
+            rich.text.Text("Utilities", style="bold"),
         )
 
-        with textual.containers.Horizontal():
-            yield textual.widgets.Label("Copy listen command for");
-            yield textual.widgets.Button("dbus-send")
-            yield textual.widgets.Button("gdbus")
-            yield textual.widgets.Button("qdbus")
-            yield textual.widgets.Button("busctl")
-
-        with textual.containers.Horizontal():
-            yield textual.widgets.Button("Listen signal")
+        with textual.widgets.Collapsible(
+            title="Generate monitor command",
+            collapsed=True,
+        ):
+            with textual.containers.HorizontalScroll():
+                yield textual.widgets.Button("dbus-send")
+                yield textual.widgets.Button("gdbus")
+                yield textual.widgets.Button("qdbus")
+                yield textual.widgets.Button("busctl")
 
 
 class PropertyDetails(textual.containers.Container):
-    
+
     DEFAULT_CSS = """
     PropertyDetails {
         height: auto;
     }
-    PropertyDetails > Horizontal {
+    PropertyDetails > HorizontalScroll {
         height: auto;
-    }
-    PropertyDetails > Horizontal > Button {
-        width: 1fr;
-        height: auto;
-        content-align: center middle;
-    }
-    PropertyDetails > Horizontal > Label {
-        width: 1fr;
-        height: 100%;
-        content-align: center middle;
     }
     PropertyDetails > Label {
-        margin-bottom: 1;
+        padding-bottom: 1;
     }
     PropertyDetails > TextArea {
+        height: auto;
+    }
+    PropertyDetails > Collapsible > Contents {
+        height: auto;
+    }
+    PropertyDetails > Collapsible > Contents > HorizontalScroll {
         height: auto;
     }
     """
@@ -430,27 +469,39 @@ class PropertyDetails(textual.containers.Container):
         yield textual.widgets.Rule()
 
         yield textual.widgets.Label(
-            rich.text.Text("Operations", style="bold")
+            rich.text.Text("Operations", style="bold"),
         )
 
-        with textual.containers.Horizontal():
-            yield textual.widgets.Label("Copy get command for");
-            yield textual.widgets.Button("dbus-send")
-            yield textual.widgets.Button("gdbus")
-            yield textual.widgets.Button("qdbus")
-            yield textual.widgets.Button("busctl")
-
-        with textual.containers.Horizontal():
-            yield textual.widgets.Label("Copy set command for");
-            yield textual.widgets.Button("dbus-send")
-            yield textual.widgets.Button("gdbus")
-            yield textual.widgets.Button("qdbus")
-            yield textual.widgets.Button("busctl")
-
-        with textual.containers.Horizontal():
+        with textual.containers.HorizontalScroll():
             yield textual.widgets.Button("Get")
             yield textual.widgets.Button("Set")
+            yield textual.widgets.Button("Monitor")
 
+        yield textual.widgets.Rule()
+
+        yield textual.widgets.Label(
+            rich.text.Text("Utilities", style="bold"),
+        )
+
+        with textual.widgets.Collapsible(
+            title="Generate command to get property",
+            collapsed=True,
+        ):
+            with textual.containers.HorizontalScroll():
+                yield textual.widgets.Button("dbus-send")
+                yield textual.widgets.Button("gdbus")
+                yield textual.widgets.Button("qdbus")
+                yield textual.widgets.Button("busctl")
+
+        with textual.widgets.Collapsible(
+            title="Generate command to set property",
+            collapsed=True,
+        ):
+            with textual.containers.HorizontalScroll():
+                yield textual.widgets.Button("dbus-send")
+                yield textual.widgets.Button("gdbus")
+                yield textual.widgets.Button("qdbus")
+                yield textual.widgets.Button("busctl")
 
 
 class MemberDetailsPage(textual.containers.Container):
@@ -484,7 +535,7 @@ class MemberDetailsPage(textual.containers.Container):
 
     def compose(self) -> textual.app.ComposeResult:
         with textual.containers.Center():
-            yield textual.widgets.Label( 
+            yield textual.widgets.Label(
                 rich.text.Text(
                     self.interface.name + "." + self.member_name, style="bold"
                 ),
@@ -495,13 +546,16 @@ class MemberDetailsPage(textual.containers.Container):
         with textual.containers.VerticalScroll():
 
             table = textual.widgets.DataTable(
-                show_header=False, show_cursor=False,
+                show_header=False,
+                show_cursor=False,
             )
             yield table
             table.add_column("Key", key="key")
             table.add_column("Value", key="value")
             table.add_row("Service name", self.service)
             table.add_row("Object path", self.path)
+            table.add_row("Interface", self.interface.name)
+            table.add_row("Name", self.member_name)
 
             yield textual.widgets.Rule()
 
@@ -509,7 +563,7 @@ class MemberDetailsPage(textual.containers.Container):
                 if method.name != self.member_name:
                     continue
 
-                table.add_row("Type", "method")
+                table.add_row("Type", "Method")
 
                 yield MethodDetails(
                     self.service, self.path, self.interface.name, method
@@ -520,7 +574,7 @@ class MemberDetailsPage(textual.containers.Container):
                 if property.name != self.member_name:
                     continue
 
-                table.add_row("Type", "property")
+                table.add_row("Type", "Property")
                 table.add_row("Signature", property.signature)
 
                 yield PropertyDetails(
@@ -532,7 +586,7 @@ class MemberDetailsPage(textual.containers.Container):
                 if signal.name != self.member_name:
                     continue
 
-                table.add_row("Type", "signal")
+                table.add_row("Type", "Signal")
 
                 yield SignalDetails(
                     self.service, self.path, self.interface.name, signal
@@ -889,8 +943,11 @@ class Interfaces(textual.containers.Container):
                             yield table
                             table.add_column("Name", key="name")
                             table.add_column("Signature", key="signature")
-                            
-                            list.sort(interface.properties, key=lambda property: property.name)
+
+                            list.sort(
+                                interface.properties,
+                                key=lambda property: property.name,
+                            )
 
                             for property in interface.properties:
                                 table.add_row(
@@ -911,7 +968,10 @@ class Interfaces(textual.containers.Container):
                             table.add_column("in", key="in")
                             table.add_column("out", key="out")
 
-                            list.sort(interface.methods, key=lambda method: method.name)
+                            list.sort(
+                                interface.methods,
+                                key=lambda method: method.name,
+                            )
 
                             for method in interface.methods:
                                 table.add_row(
@@ -933,7 +993,10 @@ class Interfaces(textual.containers.Container):
                             table.add_column("Name", key="name")
                             table.add_column("Signature", key="signature")
 
-                            list.sort(interface.signals, key=lambda signal: signal.name)
+                            list.sort(
+                                interface.signals,
+                                key=lambda signal: signal.name,
+                            )
 
                             for signal in interface.signals:
                                 table.add_row(
