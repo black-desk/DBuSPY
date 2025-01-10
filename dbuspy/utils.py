@@ -1,4 +1,4 @@
-import dbus_next
+import dbus_fast.aio
 import os
 import typing
 
@@ -18,8 +18,8 @@ def sort_dbus_services(services: list[str]) -> None:
 
 
 async def get_bus_proxy_object(
-    bus: dbus_next.aio.message_bus.MessageBus,
-) -> dbus_next.aio.proxy_object.ProxyInterface:
+    bus: dbus_fast.aio.message_bus.MessageBus,
+) -> dbus_fast.aio.proxy_object.ProxyInterface:
     return bus.get_proxy_object(
         "org.freedesktop.DBus",
         "/org/freedesktop/DBus",
@@ -30,7 +30,7 @@ async def get_bus_proxy_object(
 
 
 async def list_dbus_services(
-    bus: dbus_next.aio.message_bus.MessageBus,
+    bus: dbus_fast.aio.message_bus.MessageBus,
 ) -> list[str]:
 
     bus_proxy = await get_bus_proxy_object(bus)
@@ -41,14 +41,14 @@ async def list_dbus_services(
 
 
 async def list_dbus_object_children(
-    bus: dbus_next.aio.message_bus.MessageBus, service: str, path: str
+    bus: dbus_fast.aio.message_bus.MessageBus, service: str, path: str
 ):
 
     return (await bus.introspect(bus_name=service, path=path),)
 
 
 async def get_dbus_service_pid(
-    bus: dbus_next.aio.message_bus.MessageBus, service: str
+    bus: dbus_fast.aio.message_bus.MessageBus, service: str
 ) -> int:
     bus_proxy = await get_bus_proxy_object(bus)
     return await bus_proxy.call_get_connection_unix_process_id(service)
@@ -64,14 +64,14 @@ async def get_command_line(pid: int) -> typing.Optional[list[str]]:
 
 
 async def get_dbus_service_uid(
-    bus: dbus_next.aio.message_bus.MessageBus, service: str
+    bus: dbus_fast.aio.message_bus.MessageBus, service: str
 ) -> int:
     bus_proxy = await get_bus_proxy_object(bus)
     return await bus_proxy.call_get_connection_unix_user(service)
 
 
 async def get_dbus_service_unique_name(
-    bus: dbus_next.aio.message_bus.MessageBus, service: str
+    bus: dbus_fast.aio.message_bus.MessageBus, service: str
 ) -> str:
     bus_proxy = await get_bus_proxy_object(bus)
     return await bus_proxy.call_get_name_owner(service)

@@ -18,7 +18,7 @@ keywords = ["D-Bus", "dbus", "Textual"]
 requires-python = ">=3.9.0, <4.0.0"
 dependencies = [
         "textual >=1.0.0, ==1.*",
-        "dbus-next @ git+https://github.com/black-desk/python-dbus-next.git@DBuSPY",
+        "dbus_fast @ git+https://github.com/black-desk/dbus-fast.git@DBuSPY",
 ]
 
 [project.optional-dependencies]

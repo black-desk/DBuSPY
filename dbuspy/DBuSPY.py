@@ -1,5 +1,5 @@
 from . import utils
-import dbus_next
+import dbus_fast.aio
 import os
 import rich.text
 import shlex
@@ -9,8 +9,8 @@ import textual.containers
 import textual.css.query
 import textual.message
 import textual.reactive
-import textual.widgets
 import textual.screen
+import textual.widgets
 import typing
 
 
@@ -29,7 +29,7 @@ class DBuSPY(textual.app.App):
 
 class MainPage(textual.containers.Container):
     message_buses = textual.reactive.reactive[
-        typing.Optional[dict[str, dbus_next.aio.message_bus.MessageBus]]
+        typing.Optional[dict[str, dbus_fast.aio.message_bus.MessageBus]]
     ](None)
 
     def on_mount(self):
@@ -43,13 +43,13 @@ class MainPage(textual.containers.Container):
         # NOTE: root user doesn't have session bus
         if os.getuid() != 0:
             message_buses["session"] = (
-                await dbus_next.aio.message_bus.MessageBus(
-                    bus_type=dbus_next.constants.BusType.SESSION
+                await dbus_fast.aio.message_bus.MessageBus(
+                    bus_type=dbus_fast.constants.BusType.SESSION
                 ).connect()
             )
 
-        message_buses["system"] = await dbus_next.aio.message_bus.MessageBus(
-            bus_type=dbus_next.constants.BusType.SYSTEM
+        message_buses["system"] = await dbus_fast.aio.message_bus.MessageBus(
+            bus_type=dbus_fast.constants.BusType.SYSTEM
         ).connect()
 
         self.set_reactive(MainPage.message_buses, message_buses)
@@ -79,9 +79,9 @@ class MainPage(textual.containers.Container):
 class ObjectsTree(textual.widgets.Tree):
     def __init__(
         self,
-        bus: dbus_next.aio.message_bus.MessageBus,
+        bus: dbus_fast.aio.message_bus.MessageBus,
         service: str,
-        introspection: dbus_next.introspection.Node,
+        introspection: dbus_fast.introspection.Node,
     ):
         super().__init__("/", introspection)
 
@@ -107,13 +107,14 @@ class ObjectsTree(textual.widgets.Tree):
             return
 
         introspection = event.node.data
-        assert isinstance(introspection, dbus_next.introspection.Node)
+        assert isinstance(introspection, dbus_fast.introspection.Node)
         list.sort(introspection.nodes, key=lambda node: node.name)
 
         child_node = None
 
         for child in introspection.nodes:
-            assert isinstance(child, dbus_next.introspection.Node)
+            assert isinstance(child, dbus_fast.introspection.Node)
+            assert child.name is not None
             path = utils.get_textual_tree_node_path(event.node) + child.name
 
             child_introspection = None
@@ -218,7 +219,7 @@ class MethodDetails(textual.containers.Container):
         service: str,
         path: str,
         interface: str,
-        introspection: dbus_next.introspection.Method,
+        introspection: dbus_fast.introspection.Method,
     ):
         self.service = service
         self.path = path
@@ -258,7 +259,8 @@ class MethodDetails(textual.containers.Container):
                     )
                 if arg.annotations:
                     with textual.widgets.Collapsible(
-                        title="Annotation(s) of " + arg.name,
+                        title="Annotation(s) of "
+                        + (arg.name or "arg_" + str(index)),
                     ):
                         table = textual.widgets.DataTable(show_header=False)
                         yield table
@@ -353,7 +355,7 @@ class SignalDetails(textual.containers.Container):
         service: str,
         path: str,
         interface: str,
-        introspection: dbus_next.introspection.Signal,
+        introspection: dbus_fast.introspection.Signal,
     ):
         self.service = service
         self.path = path
@@ -438,7 +440,7 @@ class PropertyDetails(textual.containers.Container):
         service: str,
         path: str,
         interface: str,
-        introspection: dbus_next.introspection.Property,
+        introspection: dbus_fast.introspection.Property,
     ):
         self.service = service
         self.path = path
@@ -524,7 +526,7 @@ class MemberDetailsPage(textual.containers.Container):
         self,
         service: str,
         path: str,
-        interface: dbus_next.introspection.Interface,
+        interface: dbus_fast.introspection.Interface,
         member_name: str,
     ):
         super().__init__()
@@ -611,7 +613,7 @@ class MemberScreen(textual.screen.Screen):
         self,
         service: str,
         path: str,
-        interface: dbus_next.introspection.Interface,
+        interface: dbus_fast.introspection.Interface,
         member_name: str,
     ):
         self.service = service
@@ -644,10 +646,10 @@ class BusPane(textual.containers.Container):
 
     object_path = textual.reactive.reactive[typing.Optional[str]](None)
     interfaces = textual.reactive.reactive[
-        typing.Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_fast.introspection.Interface]]
     ](None)
 
-    def __init__(self, bus: dbus_next.aio.message_bus.MessageBus):
+    def __init__(self, bus: dbus_fast.aio.message_bus.MessageBus):
         super().__init__()
         self.bus = bus
 
@@ -778,7 +780,7 @@ class BusPane(textual.containers.Container):
             return
 
         def dbus_interface_sort_key(
-            interface: dbus_next.introspection.Interface,
+            interface: dbus_fast.introspection.Interface,
         ) -> str:
             return interface.name
 
@@ -885,7 +887,7 @@ class Interfaces(textual.containers.Container):
     """
 
     interfaces = textual.reactive.reactive[
-        typing.Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_fast.introspection.Interface]]
     ](None, recompose=True)
 
     def compose(self) -> textual.app.ComposeResult:
@@ -1045,7 +1047,7 @@ class Interfaces(textual.containers.Container):
 
 class ServiceDetails(textual.containers.Container):
     bus = textual.reactive.reactive[
-        typing.Optional[dbus_next.aio.message_bus.MessageBus]
+        typing.Optional[dbus_fast.aio.message_bus.MessageBus]
     ](None)
     service = textual.reactive.reactive[typing.Optional[str]](None)
     pid = textual.reactive.reactive[typing.Optional[int]](None)
@@ -1056,7 +1058,7 @@ class ServiceDetails(textual.containers.Container):
     unique_name = textual.reactive.reactive[typing.Optional[str]](None)
     object_path = textual.reactive.reactive[typing.Optional[str]](None)
     interfaces = textual.reactive.reactive[
-        typing.Optional[list[dbus_next.introspection.Interface]]
+        typing.Optional[list[dbus_fast.introspection.Interface]]
     ](None)
 
     def compose(self) -> textual.app.ComposeResult:
