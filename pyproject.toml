@@ -53,7 +53,7 @@ optional = true
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.3.4, ==8.*"
 pytest-cov = ">=6.0.0, ==6.*"
-textual-dev = ">=1.7.0, ==1.*"
+textual-dev = "==1.*"
 
 [tool.poetry.requires-plugins]
 poetry-dynamic-versioning = { version = ">=1.0.0, ==1.*", extras = ["plugin"] }
