@@ -51,7 +51,7 @@ version = "0.3.0"
 optional = true
 
 [tool.poetry.group.dev.dependencies]
-pytest = ">=8.3.4, ==8.*"
+pytest = "==8.*"
 pytest-cov = ">=6.0.0, ==6.*"
 textual-dev = ">=1.7.0, ==1.*"
 
